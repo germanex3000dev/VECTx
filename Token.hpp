@@ -17,6 +17,13 @@ enum class TokenType {
     Star,
     Slash,
 
+    EqualEqual,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+
     LeftParen,
     RightParen,
     Comma,

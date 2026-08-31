@@ -39,14 +39,14 @@ class BinaryExpr : public Expr {
 public:
     BinaryExpr(
         std::unique_ptr<Expr> left,
-        char op,
+        std::string op,
         std::unique_ptr<Expr> right
     )
         : left(std::move(left)),
-          op(op),
+          op(std::move(op)),
           right(std::move(right)) {}
     std::unique_ptr<Expr> left;
-    char op;
+    std::string op;
     std::unique_ptr<Expr> right;
 };
 

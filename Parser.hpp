@@ -22,6 +22,8 @@ private:
     std::unique_ptr<Stmt> statement();
 
     std::unique_ptr<Expr> expression();
+    std::unique_ptr<Expr> comparison();
+    std::unique_ptr<Expr> addition();
     std::unique_ptr<Expr> term();
     std::unique_ptr<Expr> factor();
 

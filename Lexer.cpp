@@ -140,6 +140,37 @@ std::vector<Token> Lexer::tokenize() {
           continue;
         }
 
+        // Comparison operators (multi-char first)
+        if (c == '=' || c == '!' || c == '<' || c == '>') {
+            char next = (position + 1 < source.length())
+                ? source[position + 1] : '\0';
+
+            if (c == '=' && next == '=') {
+                tokens.push_back({TokenType::EqualEqual, "=="});
+                advance();
+            } else if (c == '!' && next == '=') {
+                tokens.push_back({TokenType::NotEqual, "!="});
+                advance();
+            } else if (c == '<' && next == '=') {
+                tokens.push_back({TokenType::LessEqual, "<="});
+                advance();
+            } else if (c == '<') {
+                tokens.push_back({TokenType::Less, "<"});
+            } else if (c == '>' && next == '=') {
+                tokens.push_back({TokenType::GreaterEqual, ">="});
+                advance();
+            } else if (c == '>') {
+                tokens.push_back({TokenType::Greater, ">"});
+            } else {
+                tokens.push_back({TokenType::Unknown, std::string(1, c)});
+                advance();
+                continue;
+            }
+
+            advance();
+            continue;
+        }
+
         switch (c) {
             case '+':
                 tokens.push_back({TokenType::Plus, "+"});

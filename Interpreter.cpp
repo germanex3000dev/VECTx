@@ -126,48 +126,111 @@ Value Interpreter::evaluateCall(const CallExpr* expr) {
     );
 }
 
+namespace {
+
+bool isNumber(const Value& v) {
+    return v.type() == ValueType::Integer ||
+           v.type() == ValueType::Float;
+}
+
+double asNumber(const Value& v) {
+    if (v.type() == ValueType::Integer) {
+        return static_cast<double>(v.asInt());
+    }
+    if (v.type() == ValueType::Float) {
+        return v.asFloat();
+    }
+    throw std::runtime_error("Value is not numeric");
+}
+
+bool evalEquality(const std::string& op, const Value& left, const Value& right) {
+    if (left.type() != right.type()) {
+        return op == "!=";
+    }
+
+    switch (left.type()) {
+        case ValueType::Integer:
+            return op == "=="
+                ? left.asInt() == right.asInt()
+                : left.asInt() != right.asInt();
+
+        case ValueType::Float:
+            return op == "=="
+                ? left.asFloat() == right.asFloat()
+                : left.asFloat() != right.asFloat();
+
+        case ValueType::Boolean:
+            return op == "=="
+                ? left.asBool() == right.asBool()
+                : left.asBool() != right.asBool();
+
+        case ValueType::String:
+            return op == "=="
+                ? left.asString() == right.asString()
+                : left.asString() != right.asString();
+
+        default:
+            return op == "==";
+    }
+}
+
+bool evalComparison(const std::string& op, double lhs, double rhs) {
+    if (op == "<") return lhs < rhs;
+    if (op == "<=") return lhs <= rhs;
+    if (op == ">") return lhs > rhs;
+    if (op == ">=") return lhs >= rhs;
+    throw std::runtime_error("Unknown comparison operator");
+}
+
+} // namespace
+
 Value Interpreter::evaluateBinary(const BinaryExpr* expr) {
 
     Value left = evaluate(expr->left.get());
     Value right = evaluate(expr->right.get());
 
-    if (
-        left.type() != ValueType::Integer ||
-        right.type() != ValueType::Integer
-    ) {
-        throw std::runtime_error(
-            "Binary arithmetic currently requires integers"
+    const std::string& op = expr->op;
+
+    if (op == "==" || op == "!=") {
+        return Value(evalEquality(op, left, right));
+    }
+
+    if (op == "<" || op == "<=" || op == ">" || op == ">=") {
+        if (!isNumber(left) || !isNumber(right)) {
+            throw std::runtime_error(
+                "Comparison operators require numeric operands"
+            );
+        }
+        return Value(
+            evalComparison(op, asNumber(left), asNumber(right))
         );
     }
 
-    int lhs = left.asInt();
-    int rhs = right.asInt();
-
-    switch (expr->op) {
-
-        case '+':
-            return Value(lhs + rhs);
-
-        case '-':
-            return Value(lhs - rhs);
-
-        case '*':
-            return Value(lhs * rhs);
-
-        case '/':
-            if (rhs == 0) {
-                throw std::runtime_error(
-                    "Division by zero"
-                );
-            }
-
-            return Value(lhs / rhs);
-
-        default:
-            throw std::runtime_error(
-                "Unknown binary operator"
-            );
+    if (!isNumber(left) || !isNumber(right)) {
+        throw std::runtime_error(
+            "Arithmetic operators require numeric operands"
+        );
     }
+
+    double lhs = asNumber(left);
+    double rhs = asNumber(right);
+
+    if (op == "+") return Value(lhs + rhs);
+    if (op == "-") return Value(lhs - rhs);
+    if (op == "*") return Value(lhs * rhs);
+
+    if (op == "/") {
+        if (rhs == 0) {
+            throw std::runtime_error(
+                "Division by zero"
+            );
+        }
+        return Value(lhs / rhs);
+    }
+
+    throw std::runtime_error(
+        "Unknown binary operator: " + op
+    );
 }
 
 Value Interpreter::evaluateFloat(const FloatExpr* expr) {

@@ -54,13 +54,59 @@ std::unique_ptr<Stmt> Parser::statement() {
 
 std::unique_ptr<Expr> Parser::expression() {
 
+    auto left = comparison();
+
+    while (
+        current().type == TokenType::EqualEqual ||
+        current().type == TokenType::NotEqual
+    ) {
+        std::string op = advance().value;
+
+        auto right = comparison();
+
+        left = std::make_unique<BinaryExpr>(
+            std::move(left),
+            op,
+            std::move(right)
+        );
+    }
+
+    return left;
+}
+
+std::unique_ptr<Expr> Parser::comparison() {
+
+    auto left = addition();
+
+    while (
+        current().type == TokenType::Less ||
+        current().type == TokenType::LessEqual ||
+        current().type == TokenType::Greater ||
+        current().type == TokenType::GreaterEqual
+    ) {
+        std::string op = advance().value;
+
+        auto right = addition();
+
+        left = std::make_unique<BinaryExpr>(
+            std::move(left),
+            op,
+            std::move(right)
+        );
+    }
+
+    return left;
+}
+
+std::unique_ptr<Expr> Parser::addition() {
+
     auto left = term();
 
     while (
         current().type == TokenType::Plus ||
         current().type == TokenType::Minus
     ) {
-        char op = advance().value[0];
+        std::string op = advance().value;
 
         auto right = term();
 
@@ -82,7 +128,7 @@ std::unique_ptr<Expr> Parser::term() {
         current().type == TokenType::Star ||
         current().type == TokenType::Slash
     ) {
-        char op = advance().value[0];
+        std::string op = advance().value;
 
         auto right = factor();
 

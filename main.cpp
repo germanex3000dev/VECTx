@@ -10,6 +10,7 @@ int main() {
         conout(true);
         conout(false);
         conout("Hello VECTx");
+        conout("Pineapples");
     )";
 
     Lexer lexer(source);
