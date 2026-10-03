@@ -2,9 +2,42 @@
 
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <iostream>
 
 namespace {
+
+// Pushes a scope on construction and pops it on destruction. Used so that a
+// runtime error thrown part way through a block cannot leave the environment
+// with that block's scope still on the stack.
+class ScopeGuard {
+public:
+    explicit ScopeGuard(Environment& environment)
+        : environment(environment) {
+        environment.pushScope();
+    }
+
+    ~ScopeGuard() {
+        environment.popScope();
+    }
+
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+
+private:
+    Environment& environment;
+};
+
+const char* typeName(ValueType type) {
+    switch (type) {
+        case ValueType::Integer: return "int";
+        case ValueType::Float: return "float";
+        case ValueType::Boolean: return "bool";
+        case ValueType::String: return "string";
+        case ValueType::Null: return "null";
+    }
+    return "unknown";
+}
 
 // Applies an operator that preserves the integer type. Computed in 64 bits and
 // range-checked, because signed overflow is undefined behaviour and silently
@@ -146,6 +179,18 @@ void Interpreter::execute(const Stmt* statement) {
         return;
     }
 
+    if (auto block = dynamic_cast<const BlockStmt*>(statement)) {
+
+        executeBlock(block);
+        return;
+    }
+
+    if (auto conditional = dynamic_cast<const IfStmt*>(statement)) {
+
+        executeIf(conditional);
+        return;
+    }
+
     throw std::runtime_error(
         "Unknown statement type"
     );
@@ -155,6 +200,38 @@ void Interpreter::executeExpression(
     const ExpressionStmt* statement
 ) {
     evaluate(statement->expression.get());
+}
+
+void Interpreter::executeBlock(const BlockStmt* statement) {
+
+    // The scope is released even if a statement throws.
+    ScopeGuard scope(environment);
+
+    for (const auto& stmt : statement->statements) {
+        execute(stmt.get());
+    }
+}
+
+void Interpreter::executeIf(const IfStmt* statement) {
+
+    Value condition = evaluate(statement->condition.get());
+
+    if (condition.type() != ValueType::Boolean) {
+        throw std::runtime_error(
+            std::string(
+                "if condition must be a bool, got "
+            ) + typeName(condition.type())
+        );
+    }
+
+    if (condition.asBool()) {
+        execute(statement->thenBranch.get());
+        return;
+    }
+
+    if (statement->elseBranch != nullptr) {
+        execute(statement->elseBranch.get());
+    }
 }
 
 void Interpreter::executeVariableDeclaration(

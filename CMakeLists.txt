@@ -14,8 +14,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
-add_executable(vectx
-    src/main.cpp
+add_library(vectx_core
     src/Lexer.cpp
     src/Parser.cpp
     src/Interpreter.cpp
@@ -23,11 +22,16 @@ add_executable(vectx
     src/Value.cpp
 )
 
-target_include_directories(vectx PRIVATE src)
+target_include_directories(vectx_core PUBLIC src)
+
+add_executable(vectx src/main.cpp)
+target_link_libraries(vectx PRIVATE vectx_core)
 
 if(MSVC)
+    target_compile_options(vectx_core PRIVATE /W4)
     target_compile_options(vectx PRIVATE /W4)
 else()
+    target_compile_options(vectx_core PRIVATE -Wall -Wextra)
     target_compile_options(vectx PRIVATE -Wall -Wextra)
 endif()
 
@@ -36,3 +40,16 @@ endif()
 set_target_properties(vectx PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
+
+enable_testing()
+
+add_executable(vectx_tests tests/test_language.cpp)
+target_link_libraries(vectx_tests PRIVATE vectx_core)
+
+if(MSVC)
+    target_compile_options(vectx_tests PRIVATE /W4)
+else()
+    target_compile_options(vectx_tests PRIVATE -Wall -Wextra)
+endif()
+
+add_test(NAME language COMMAND vectx_tests)

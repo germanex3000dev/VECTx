@@ -27,6 +27,38 @@ public:
   std::vector<std::unique_ptr<Stmt>> statements;
 };
 
+// A braced group of statements. Also the scope of any variable declared
+// inside it, which is discarded when the block ends.
+class BlockStmt : public Stmt {
+public:
+  explicit BlockStmt(
+      std::vector<std::unique_ptr<Stmt>> statements
+  )
+    : statements(std::move(statements)) {}
+
+  std::vector<std::unique_ptr<Stmt>> statements;
+};
+
+// if (condition) thenBranch [else elseBranch]
+//
+// elseBranch is null when there is no else clause. An `else if` chain is
+// represented by nesting another IfStmt in the elseBranch.
+class IfStmt : public Stmt {
+public:
+  IfStmt(
+      std::unique_ptr<Expr> condition,
+      std::unique_ptr<Stmt> thenBranch,
+      std::unique_ptr<Stmt> elseBranch
+  )
+    : condition(std::move(condition)),
+      thenBranch(std::move(thenBranch)),
+      elseBranch(std::move(elseBranch)) {}
+
+  std::unique_ptr<Expr> condition;
+  std::unique_ptr<Stmt> thenBranch;
+  std::unique_ptr<Stmt> elseBranch;
+};
+
 enum class VariableType {
     Integer,
     Float,

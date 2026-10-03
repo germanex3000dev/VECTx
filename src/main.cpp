@@ -21,10 +21,24 @@ int main() {
         var bool: truthy = true;
         conout(truthy);
 
+        if (number == 5) {
+            conout("five");
+        } else {
+            conout("not five");
+        }
+
         var any: value = 5;
-        conout(value);
         conout(value is(type: int));
         conout(value is(type: string));
+
+        var any: label = greeting;
+        if (label is(type: string)) {
+            conout("greeting is a string");
+        } else if (label is(type: int)) {
+            conout("greeting is an int");
+        } else {
+            conout("greeting is something else");
+        }
 
         var any: computed = value * 3;
         conout(computed is(type: int));
@@ -32,6 +46,11 @@ int main() {
         var any: ratio = computed / 2;
         conout(ratio);
         conout(ratio is(type: float));
+
+        if (ratio > 7) {
+            var string: verdict = "greater than seven";
+            conout(verdict);
+        }
     )";
 
     Lexer lexer(source);

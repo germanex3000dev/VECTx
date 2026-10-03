@@ -22,6 +22,10 @@ private:
         const VariableDeclStmt* statement
     );
 
+    void executeBlock(const BlockStmt* statement);
+
+    void executeIf(const IfStmt* statement);
+
     Value evaluateNumber(const NumberExpr* expr);
     Value evaluateFloat(const FloatExpr* expr);
     Value evaluateString(const StringExpr* expr);

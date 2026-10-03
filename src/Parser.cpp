@@ -94,6 +94,10 @@ std::unique_ptr<Stmt> Parser::statement() {
         return variableDeclaration();
     }
 
+    if (current().type == TokenType::If) {
+        return ifStatement();
+    }
+
     auto expr = expression();
 
     if (current().type != TokenType::Semicolon) {
@@ -106,6 +110,86 @@ std::unique_ptr<Stmt> Parser::statement() {
 
     return std::make_unique<ExpressionStmt>(
         std::move(expr)
+    );
+}
+
+std::unique_ptr<Stmt> Parser::ifStatement() {
+
+    advance(); // Consume 'if'
+
+    if (current().type != TokenType::LeftParen) {
+        throw std::runtime_error(
+            "Expected '(' after 'if'"
+        );
+    }
+
+    advance();
+
+    auto condition = expression();
+
+    if (current().type != TokenType::RightParen) {
+        throw std::runtime_error(
+            "Expected ')' after an if condition"
+        );
+    }
+
+    advance();
+
+    auto thenBranch = body();
+
+    std::unique_ptr<Stmt> elseBranch;
+
+    if (current().type == TokenType::Else) {
+
+        advance(); // Consume 'else'
+
+        // 'else if' is parsed as a nested if, which is also what makes
+        // chains of else if work.
+        if (current().type == TokenType::If) {
+            elseBranch = ifStatement();
+        } else {
+            elseBranch = body();
+        }
+    }
+
+    return std::make_unique<IfStmt>(
+        std::move(condition),
+        std::move(thenBranch),
+        std::move(elseBranch)
+    );
+}
+
+// The body of an if or else clause: a braced block, or a single statement.
+std::unique_ptr<Stmt> Parser::body() {
+
+    if (current().type == TokenType::LeftBrace) {
+        return block();
+    }
+
+    return statement();
+}
+
+std::unique_ptr<Stmt> Parser::block() {
+
+    advance(); // Consume '{'
+
+    std::vector<std::unique_ptr<Stmt>> statements;
+
+    while (current().type != TokenType::RightBrace) {
+
+        if (current().type == TokenType::EndOfFile) {
+            throw std::runtime_error(
+                "Expected '}' to close a block"
+            );
+        }
+
+        statements.push_back(statement());
+    }
+
+    advance(); // Consume '}'
+
+    return std::make_unique<BlockStmt>(
+        std::move(statements)
     );
 }
 

@@ -115,6 +115,20 @@ Token Lexer::identifier() {
         };
     }
 
+    if (value == "if") {
+        return {
+            TokenType::If,
+            value
+        };
+    }
+
+    if (value == "else") {
+        return {
+            TokenType::Else,
+            value
+        };
+    }
+
     if (value == "int") {
         return {
             TokenType::IntType,
@@ -252,6 +266,14 @@ std::vector<Token> Lexer::tokenize() {
 
             case ')':
                 tokens.push_back({TokenType::RightParen, ")"});
+                break;
+
+            case '{':
+                tokens.push_back({TokenType::LeftBrace, "{"});
+                break;
+
+            case '}':
+                tokens.push_back({TokenType::RightBrace, "}"});
                 break;
 
             case ',':

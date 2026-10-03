@@ -4,9 +4,9 @@ A small statically typed scripting language with dynamic support, written in C++
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-VECTx is a work in progress. It currently has variables, arithmetic, comparison
-and a `conout()` builtin — enough to evaluate small expressions. See
-[Not implemented yet](#not-implemented-yet) for what is missing.
+VECTx is a work in progress. It has variables, arithmetic, comparison,
+`if` statements and a `conout()` builtin — enough to write small branching
+programs. See [Not implemented yet](#not-implemented-yet) for what is missing.
 
 ## Reason
 Why did I make VECTx? I don't know either. "Why not?", I probably thought, before spending 3 hours 
@@ -50,13 +50,32 @@ pass on the command line yet. The output of the demo is:
 3.14
 Pineapples
 true
-5
+five
 true
 false
+greeting is a string
 true
 7.5
 true
+greater than seven
 ```
+
+## Tests
+
+```sh
+cmake -B build -S .
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+Or run the test binary directly for per-check output:
+
+```sh
+./build/vectx_tests
+```
+
+40 checks covering if statements, type checks, conditions, scoping, syntax
+errors and arithmetic.
 
 ## Language
 
@@ -117,6 +136,79 @@ conout(value is(type: any));    // true
 value with no data — such as the result of a builtin that returns nothing —
 which has no type of its own to report.
 
+Because `is` binds tighter than every other operator, be careful mixing it with
+a comparison. `a == b is(type: int)` means `a == (b is(type: int))`, which
+compares a value against a boolean and so is false. Wrap the comparison in
+parentheses, or check the type in a separate statement.
+
+### If statements
+
+```
+if ( <condition> ) <then> [ else <otherwise> ]
+```
+
+The condition **must be a bool**. There is no truthiness: `if (1)` is an error
+that reports what it got, not something that quietly means `true`.
+
+```vectx
+var int: number = 5;
+
+if (number == 5) {
+    conout("five");
+} else {
+    conout("not five");
+}
+```
+
+`else if` chains work as expected:
+
+```vectx
+var any: label = "Pineapples";
+
+if (label is(type: int)) {
+    conout("an int");
+} else if (label is(type: string)) {
+    conout("a string");
+} else {
+    conout("something else");
+}
+```
+
+Type checks return a bool, so they drop straight into a condition — this is the
+main way to inspect an `any` value.
+
+Braces are optional around a single statement, as in C++:
+
+```vectx
+if (true) conout("one statement");
+```
+
+Blocks may nest to any depth.
+
+### Scoping
+
+Each braced block is a scope. A variable declared inside one is gone once the
+block ends, and an inner declaration of the same name shadows the outer one
+without changing it.
+
+```vectx
+var int: x = 1;
+
+if (true) {
+    var int: x = 99;   // shadows
+    conout(x);         // 99
+}
+
+conout(x);             // 1, the outer x is untouched
+```
+
+A variable declared outside is visible inside, so blocks can read and shadow
+what came before them. There is no reassignment yet, so a block cannot yet
+write to an enclosing variable from a script.
+
+If a statement throws part way through a block, that block's scope is still
+discarded rather than left behind.
+
 ### Arithmetic
 
 `int op int` stays an `int`, so arithmetic can be used directly in an `int`
@@ -153,7 +245,8 @@ the only builtin, and it requires exactly one argument.
 
 ### Reserved words
 
-`var`, `int`, `float`, `string`, `bool`, `any`, `is`, `type`, `true`, `false`
+`var`, `if`, `else`, `int`, `float`, `string`, `bool`, `any`, `is`, `type`,
+`true`, `false`
 
 These cannot be used as identifiers.
 
@@ -163,14 +256,15 @@ Known gaps, so you do not have to go looking for them:
 
 - **No comments.** Neither `//` nor `/* */`.
 - **No unary minus.** Write `0 - 5`; `-5` is a parse error.
-- **No logical operators.** `&&` and `||` do not exist.
+- **No logical operators.** `&&` and `||` do not exist, so a condition cannot
+  combine a comparison with a type check — the most obvious next gap.
 - **No assignment.** Variables cannot be reassigned after declaration.
-- **No control flow.** No `if`, `while`, or functions.
+- **No loops.** `while` and `for` do not exist.
+- **No functions.**
 - **No string escapes.** `"\n"` prints a literal backslash-n.
+- **No string concatenation.** `+` only works on numbers.
 - **No `null` literal.** `null` parses as an undefined variable name.
 - **No file input.** The demo program is hardcoded in `src/main.cpp`.
-- **No tests.**
-- **Environment is a single flat global scope.** No scoping or shadowing.
 
 ## Layout
 
@@ -183,9 +277,11 @@ src/
   AST.hpp           expression and statement nodes
   Parser.{hpp,cpp}  tokens -> AST
   Value.{hpp,cpp}   runtime value (a std::variant)
-  Environment.{hpp,cpp}  variable storage
+  Environment.{hpp,cpp}  variable storage, as a stack of scopes
   Interpreter.{hpp,cpp}  AST -> execution
   main.cpp          entry point and demo program
+tests/
+  test_language.cpp language, scoping and arithmetic tests
 ```
 
 ## License
@@ -194,9 +290,11 @@ MIT — see [LICENSE](LICENSE).
 
 ## Roadmap
 
-- Type checks as the basis for `if` statements
+- Logical operators, `&&` and `||`, so conditions can combine tests
 - Reassignment, with `any` variables permitted to change type
+- Functions, with `def name(args) -> ret_glob { return v }` returning through a
+  global return variable
+- Loops
 - Comments
 - Unary minus
 - File input, so scripts can be run from disk
-- Tests

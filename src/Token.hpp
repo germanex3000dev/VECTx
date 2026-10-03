@@ -11,6 +11,8 @@ enum class TokenType {
     False,
 
     Var,
+    If,
+    Else,
     IntType,
     FloatType,
     StringType,
@@ -39,6 +41,8 @@ enum class TokenType {
 
     LeftParen,
     RightParen,
+    LeftBrace,
+    RightBrace,
     Comma,
     Semicolon,
 
