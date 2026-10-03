@@ -19,13 +19,18 @@ private:
     Token current() const;
     Token advance();
 
+    VariableType typeName();
+
     std::unique_ptr<Stmt> statement();
+    std::unique_ptr<Stmt> variableDeclaration();
 
     std::unique_ptr<Expr> expression();
     std::unique_ptr<Expr> comparison();
     std::unique_ptr<Expr> addition();
     std::unique_ptr<Expr> term();
     std::unique_ptr<Expr> factor();
+
+    std::unique_ptr<Expr> isTypeCheck(std::unique_ptr<Expr> target);
 
     std::unique_ptr<Expr> number();
     std::unique_ptr<Expr> floatNumber();

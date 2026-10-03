@@ -2,6 +2,39 @@
 
 #include <stdexcept>
 
+namespace {
+
+BinaryOp toBinaryOp(TokenType type) {
+    switch (type) {
+        case TokenType::Plus:
+            return BinaryOp::Add;
+        case TokenType::Minus:
+            return BinaryOp::Subtract;
+        case TokenType::Star:
+            return BinaryOp::Multiply;
+        case TokenType::Slash:
+            return BinaryOp::Divide;
+        case TokenType::EqualEqual:
+            return BinaryOp::Equal;
+        case TokenType::NotEqual:
+            return BinaryOp::NotEqual;
+        case TokenType::Less:
+            return BinaryOp::Less;
+        case TokenType::LessEqual:
+            return BinaryOp::LessEqual;
+        case TokenType::Greater:
+            return BinaryOp::Greater;
+        case TokenType::GreaterEqual:
+            return BinaryOp::GreaterEqual;
+        default:
+            throw std::runtime_error(
+                "Not a binary operator"
+            );
+    }
+}
+
+} // namespace
+
 Parser::Parser(const std::vector<Token>& tokens)
     : tokens(tokens) {
 }
@@ -24,6 +57,26 @@ Token Parser::advance() {
     return token;
 }
 
+VariableType Parser::typeName() {
+
+    switch (current().type) {
+        case TokenType::IntType:
+            return VariableType::Integer;
+        case TokenType::FloatType:
+            return VariableType::Float;
+        case TokenType::StringType:
+            return VariableType::String;
+        case TokenType::BoolType:
+            return VariableType::Boolean;
+        case TokenType::AnyType:
+            return VariableType::Any;
+        default:
+            throw std::runtime_error(
+                "Expected a type name"
+            );
+    }
+}
+
 Program Parser::parse() {
 
   Program program;
@@ -36,6 +89,10 @@ Program Parser::parse() {
 }
 
 std::unique_ptr<Stmt> Parser::statement() {
+
+    if (current().type == TokenType::Var) {
+        return variableDeclaration();
+    }
 
     auto expr = expression();
 
@@ -52,6 +109,55 @@ std::unique_ptr<Stmt> Parser::statement() {
     );
 }
 
+std::unique_ptr<Stmt> Parser::variableDeclaration() {
+
+    advance(); // Consume 'var'
+
+    VariableType type = typeName();
+
+    advance();
+
+    if (current().type != TokenType::Colon) {
+        throw std::runtime_error(
+            "Expected ':' after type name"
+        );
+    }
+
+    advance();
+
+    if (current().type != TokenType::Identifier) {
+        throw std::runtime_error(
+            "Expected variable name"
+        );
+    }
+
+    std::string name = advance().value;
+
+    if (current().type != TokenType::Equal) {
+        throw std::runtime_error(
+            "Expected '=' after variable name"
+        );
+    }
+
+    advance();
+
+    auto initializer = expression();
+
+    if (current().type != TokenType::Semicolon) {
+        throw std::runtime_error(
+            "Expected ';' after variable declaration"
+        );
+    }
+
+    advance();
+
+    return std::make_unique<VariableDeclStmt>(
+        type,
+        std::move(name),
+        std::move(initializer)
+    );
+}
+
 std::unique_ptr<Expr> Parser::expression() {
 
     auto left = comparison();
@@ -60,7 +166,7 @@ std::unique_ptr<Expr> Parser::expression() {
         current().type == TokenType::EqualEqual ||
         current().type == TokenType::NotEqual
     ) {
-        std::string op = advance().value;
+        BinaryOp op = toBinaryOp(advance().type);
 
         auto right = comparison();
 
@@ -84,7 +190,7 @@ std::unique_ptr<Expr> Parser::comparison() {
         current().type == TokenType::Greater ||
         current().type == TokenType::GreaterEqual
     ) {
-        std::string op = advance().value;
+        BinaryOp op = toBinaryOp(advance().type);
 
         auto right = addition();
 
@@ -106,7 +212,7 @@ std::unique_ptr<Expr> Parser::addition() {
         current().type == TokenType::Plus ||
         current().type == TokenType::Minus
     ) {
-        std::string op = advance().value;
+        BinaryOp op = toBinaryOp(advance().type);
 
         auto right = term();
 
@@ -128,7 +234,7 @@ std::unique_ptr<Expr> Parser::term() {
         current().type == TokenType::Star ||
         current().type == TokenType::Slash
     ) {
-        std::string op = advance().value;
+        BinaryOp op = toBinaryOp(advance().type);
 
         auto right = factor();
 
@@ -143,7 +249,64 @@ std::unique_ptr<Expr> Parser::term() {
 }
 
 std::unique_ptr<Expr> Parser::factor() {
-  return primary();
+
+    auto left = primary();
+
+    // 'is' is a postfix operator, so it binds tighter than every binary
+    // operator: 'a + b is(type: int)' parses as 'a + (b is(type: int))'.
+    while (current().type == TokenType::Is) {
+        left = isTypeCheck(std::move(left));
+    }
+
+    return left;
+}
+
+std::unique_ptr<Expr> Parser::isTypeCheck(
+    std::unique_ptr<Expr> target
+) {
+
+    advance(); // Consume 'is'
+
+    if (current().type != TokenType::LeftParen) {
+        throw std::runtime_error(
+            "Expected '(' after 'is'"
+        );
+    }
+
+    advance();
+
+    if (current().type != TokenType::TypeKeyword) {
+        throw std::runtime_error(
+            "Expected 'type' inside a type check"
+        );
+    }
+
+    advance();
+
+    if (current().type != TokenType::Colon) {
+        throw std::runtime_error(
+            "Expected ':' after 'type'"
+        );
+    }
+
+    advance();
+
+    VariableType expectedType = typeName();
+
+    advance(); // Consume the type name
+
+    if (current().type != TokenType::RightParen) {
+        throw std::runtime_error(
+            "Expected ')' to close a type check"
+        );
+    }
+
+    advance();
+
+    return std::make_unique<IsTypeExpr>(
+        std::move(target),
+        expectedType
+    );
 }
 
 std::unique_ptr<Expr> Parser::number() {
@@ -210,8 +373,8 @@ std::unique_ptr<Expr> Parser::primary() {
             );
         }
 
-        throw std::runtime_error(
-            "Expected '(' after function name"
+        return std::make_unique<VariableExpr>(
+            std::move(name)
         );
     }
 

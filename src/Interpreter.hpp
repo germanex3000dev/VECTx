@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AST.hpp"
+#include "Enviroment.hpp"
 #include "Value.hpp"
 
 class Interpreter {
@@ -11,14 +12,23 @@ public:
     Value evaluate(const Expr* expr);
 
 private:
+    Enviroment enviroment;
+
     void executeExpression(
         const ExpressionStmt* statement
+    );
+
+    void executeVariableDeclaration(
+        const VariableDeclStmt* statement
     );
 
     Value evaluateNumber(const NumberExpr* expr);
     Value evaluateFloat(const FloatExpr* expr);
     Value evaluateString(const StringExpr* expr);
     Value evaluateBoolean(const BooleanExpr* expr);
+    Value evaluateIsType(const IsTypeExpr* expr);
+
+    Value evaluateVariable(const VariableExpr* expr);
 
     Value evaluateBinary(const BinaryExpr* expr);
     Value evaluateCall(const CallExpr* expr);

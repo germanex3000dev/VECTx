@@ -108,6 +108,62 @@ Token Lexer::identifier() {
         };
     }
 
+    if (value == "var") {
+        return {
+            TokenType::Var,
+            value
+        };
+    }
+
+    if (value == "int") {
+        return {
+            TokenType::IntType,
+            value
+        };
+    }
+
+    if (value == "float") {
+        return {
+            TokenType::FloatType,
+            value
+        };
+    }
+
+    if (value == "string") {
+        return {
+            TokenType::StringType,
+            value
+        };
+    }
+
+    if (value == "bool") {
+        return {
+            TokenType::BoolType,
+            value
+        };
+    }
+
+    if (value == "any") {
+        return {
+            TokenType::AnyType,
+            value
+        };
+    }
+
+    if (value == "is") {
+        return {
+            TokenType::Is,
+            value
+        };
+    }
+
+    if (value == "type") {
+        return {
+            TokenType::TypeKeyword,
+            value
+        };
+    }
+
     return {
         TokenType::Identifier,
         value
@@ -161,6 +217,8 @@ std::vector<Token> Lexer::tokenize() {
                 advance();
             } else if (c == '>') {
                 tokens.push_back({TokenType::Greater, ">"});
+            } else if (c == '=') {
+                tokens.push_back({TokenType::Equal, "="});
             } else {
                 tokens.push_back({TokenType::Unknown, std::string(1, c)});
                 advance();
@@ -198,6 +256,10 @@ std::vector<Token> Lexer::tokenize() {
 
             case ',':
                 tokens.push_back({TokenType::Comma, ","});
+                break;
+
+            case ':':
+                tokens.push_back({TokenType::Colon, ":"});
                 break;
 
             case ';':

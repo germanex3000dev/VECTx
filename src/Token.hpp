@@ -10,6 +10,16 @@ enum class TokenType {
     True,
     False,
 
+    Var,
+    IntType,
+    FloatType,
+    StringType,
+    BoolType,
+    AnyType,
+
+    Is,
+    TypeKeyword,
+
     Identifier,
 
     Plus,
@@ -23,6 +33,9 @@ enum class TokenType {
     LessEqual,
     Greater,
     GreaterEqual,
+
+    Equal,
+    Colon,
 
     LeftParen,
     RightParen,

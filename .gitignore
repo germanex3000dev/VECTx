@@ -1,0 +1,28 @@
+# Build directories
+build/
+build*/
+cmake-build-*/
+out/
+
+# Compiled binaries and objects
+vectx
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Editor / IDE
+.vscode/
+.idea/
+.cache/
+compile_commands.json
+*.swp
+*~
+
+# OS cruft
+.DS_Store
+Thumbs.db
