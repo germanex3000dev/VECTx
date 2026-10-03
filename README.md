@@ -1,12 +1,18 @@
 # VECTx
 
-A small dynamically typed scripting language, written in C++17.
+A small statically typed scripting language with dynamic support, written in C++17.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 VECTx is a work in progress. It currently has variables, arithmetic, comparison
 and a `conout()` builtin — enough to evaluate small expressions. See
 [Not implemented yet](#not-implemented-yet) for what is missing.
+
+## Reason
+Why did I make VECTx? I don't know either. "Why not?", I probably thought, before spending 3 hours 
+understanding what even the error means. It literally has no point (apart from being faster than python). 
+If you seriously plan to use this unfinished *thing*, I recommend seeing a Therapist. I will implement cool features in 
+it though. So stay tuned.
 
 ## Build
 
