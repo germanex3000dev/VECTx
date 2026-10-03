@@ -2,6 +2,8 @@
 
 A small dynamically typed scripting language, written in C++17.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 VECTx is a work in progress. It currently has variables, arithmetic, comparison
 and a `conout()` builtin — enough to evaluate small expressions. See
 [Not implemented yet](#not-implemented-yet) for what is missing.
@@ -168,16 +170,21 @@ Known gaps, so you do not have to go looking for them:
 
 ```
 CMakeLists.txt
+LICENSE
 src/
   Token.hpp         token types
   Lexer.{hpp,cpp}   source text -> tokens
   AST.hpp           expression and statement nodes
   Parser.{hpp,cpp}  tokens -> AST
   Value.{hpp,cpp}   runtime value (a std::variant)
-  Enviroment.{hpp,cpp}  variable storage
+  Environment.{hpp,cpp}  variable storage
   Interpreter.{hpp,cpp}  AST -> execution
   main.cpp          entry point and demo program
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ## Roadmap
 

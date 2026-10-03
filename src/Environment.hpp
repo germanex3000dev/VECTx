@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_map>
 
-class Enviroment {
+class Environment {
 public:
   void define(const std::string& name, const Value& value);
   Value get(const std::string& name) const;

@@ -174,7 +174,7 @@ void Interpreter::executeVariableDeclaration(
         );
     }
 
-    enviroment.define(statement->name, value);
+    environment.define(statement->name, value);
 }
 
 Value Interpreter::evaluate(const Expr* expr) {
@@ -221,7 +221,7 @@ Value Interpreter::evaluateNumber(const NumberExpr* expr) {
 }
 
 Value Interpreter::evaluateVariable(const VariableExpr* expr) {
-    return enviroment.get(expr->name);
+    return environment.get(expr->name);
 }
 
 Value Interpreter::evaluateCall(const CallExpr* expr) {

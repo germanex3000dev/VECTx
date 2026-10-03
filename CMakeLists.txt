@@ -19,7 +19,7 @@ add_executable(vectx
     src/Lexer.cpp
     src/Parser.cpp
     src/Interpreter.cpp
-    src/Enviroment.cpp
+    src/Environment.cpp
     src/Value.cpp
 )
 

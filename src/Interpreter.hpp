@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AST.hpp"
-#include "Enviroment.hpp"
+#include "Environment.hpp"
 #include "Value.hpp"
 
 class Interpreter {
@@ -12,7 +12,7 @@ public:
     Value evaluate(const Expr* expr);
 
 private:
-    Enviroment enviroment;
+    Environment environment;
 
     void executeExpression(
         const ExpressionStmt* statement
