@@ -328,9 +328,9 @@ void testAssignReachesEnclosingScope() {
     std::string label = "assign() updates a binding in an outer scope";
 
     Environment environment;
-    environment.define("ret_glob", Value());
+    environment.define("ret_glob", Value(), VariableType::Any);
     environment.pushScope();
-    environment.define("local", Value(7));
+    environment.define("local", Value(7), VariableType::Integer);
     environment.assign("ret_glob", Value(42));
     environment.popScope();
 
@@ -395,9 +395,170 @@ void testIntegerArithmetic() {
     );
 }
 
+void testLogicalOperators() {
+    std::cout << "logical operators\n";
+
+    expectOutput(
+        "&& is true when both sides hold",
+        "if (true && true) { conout(\"yes\"); } else { conout(\"no\"); }",
+        "yes\n"
+    );
+
+    expectOutput(
+        "&& is false when one side fails",
+        "if (true && false) { conout(\"yes\"); } else { conout(\"no\"); }",
+        "no\n"
+    );
+
+    expectOutput(
+        "|| is true when one side holds",
+        "if (false || true) { conout(\"yes\"); } else { conout(\"no\"); }",
+        "yes\n"
+    );
+
+    expectOutput(
+        "a comparison combines with &&",
+        "var int: n = 5;"
+        " if (n > 1 && n < 10) { conout(\"in range\"); } else { conout(\"out\"); }",
+        "in range\n"
+    );
+
+    expectOutput(
+        "a type check combines with ||",
+        "var any: v = 5;"
+        " if (v is(type: string) || v is(type: int)) { conout(\"ok\"); } else { conout(\"no\"); }",
+        "ok\n"
+    );
+
+    expectOutput(
+        "&& binds tighter than ||",
+        "if (false && false || true) { conout(\"ok\"); } else { conout(\"no\"); }",
+        "ok\n"
+    );
+
+    expectOutput(
+        "&& short-circuits a false left side",
+        "if (false && (1 / 0 == 0)) { conout(\"no\"); } conout(\"survived\");",
+        "survived\n"
+    );
+
+    expectOutput(
+        "|| short-circuits a true left side",
+        "if (true || (1 / 0 == 0)) { conout(\"ok\"); } conout(\"survived\");",
+        "ok\nsurvived\n"
+    );
+
+    expectError(
+        "&& rejects a non-bool left operand",
+        "if (1 && true) { }",
+        "'&&' requires a bool, got int"
+    );
+
+    expectError(
+        "&& rejects a non-bool right operand",
+        "if (true && \"s\") { }",
+        "'&&' requires a bool, got string"
+    );
+
+    expectError(
+        "|| rejects a non-bool operand",
+        "if (false || 2) { }",
+        "'||' requires a bool, got int"
+    );
+}
+
+void testReassignment() {
+    std::cout << "reassignment\n";
+
+    expectOutput(
+        "a variable can be reassigned",
+        "var int: x = 5; x = 7; conout(x);",
+        "7\n"
+    );
+
+    expectOutput(
+        "reassignment is visible in a block",
+        "var int: x = 1; if (true) { x = 99; } conout(x);",
+        "99\n"
+    );
+
+    expectOutput(
+        "an inner declaration shadows, so the outer value is untouched",
+        "var int: x = 1; if (true) { var int: x = 2; x = 3; conout(x); } conout(x);",
+        "3\n1\n"
+    );
+
+    expectOutput(
+        "a reassignment can feed a comparison",
+        "var int: n = 1; n = n + 4; if (n == 5) { conout(\"five\"); }",
+        "five\n"
+    );
+
+    expectError(
+        "reassigning a wrongly typed value is rejected",
+        "var int: x = 5; x = \"no\";",
+        "Type mismatch in assignment to 'x'"
+    );
+
+    expectError(
+        "assigning to an undefined variable is rejected",
+        "ghost = 1;",
+        "Undefined variable: ghost"
+    );
+
+    expectError(
+        "a missing ';' is a syntax error",
+        "var int: x = 1; x = 2 conout(x);",
+        "Expected ';' after assignment"
+    );
+
+    expectOutput(
+        "== is still a comparison, not an assignment",
+        "var int: x = 2; if (x == 2) { conout(\"two\"); }",
+        "two\n"
+    );
+}
+
+void testAnyReassignment() {
+    std::cout << "reassigning any variables\n";
+
+    expectOutput(
+        "an any variable may change type",
+        "var any: v = 5; v = \"five\"; conout(v is(type: string));",
+        "true\n"
+    );
+
+    expectOutput(
+        "an any variable may switch back and forth",
+        "var any: v = 5;"
+        " conout(v is(type: int));"
+        " v = 2.5;"
+        " conout(v is(type: float));"
+        " v = true;"
+        " conout(v is(type: bool));",
+        "true\ntrue\ntrue\n"
+    );
+
+    expectOutput(
+        "a reassigned any keeps the new value's arithmetic type",
+        "var any: v = 5; v = 7 / 2; conout(v);",
+        "3.5\n"
+    );
+
+    expectOutput(
+        "&& guards a division using a type check",
+        "var any: divisor = 2; divisor = 0;"
+        " if (divisor is(type: int) && divisor != 0) { conout(1 / divisor); } else { conout(\"skipped\"); }",
+        "skipped\n"
+    );
+}
+
 } // namespace
 
 int main() {
+    testLogicalOperators();
+    testReassignment();
+    testAnyReassignment();
     testIfStatements();
     testTypeChecksInConditions();
     testConditionsMustBeBoolean();

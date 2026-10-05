@@ -22,6 +22,8 @@ private:
         const VariableDeclStmt* statement
     );
 
+    void executeAssignment(const AssignStmt* statement);
+
     void executeBlock(const BlockStmt* statement);
 
     void executeIf(const IfStmt* statement);
@@ -35,5 +37,6 @@ private:
     Value evaluateVariable(const VariableExpr* expr);
 
     Value evaluateBinary(const BinaryExpr* expr);
+    Value evaluateLogical(const BinaryExpr* expr);
     Value evaluateCall(const CallExpr* expr);
 };

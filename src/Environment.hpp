@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST.hpp"
 #include "Value.hpp"
 
 #include <string>
@@ -22,13 +23,25 @@ public:
   void pushScope();
   void popScope();
 
-  void define(const std::string& name, const Value& value);
+  void define(const std::string& name, const Value& value,
+              VariableType type);
   Value get(const std::string& name) const;
   void assign(const std::string& name, const Value& value);
 
-private:
-  std::vector<std::unordered_map<std::string, Value>> scopes;
+  // The type a variable was declared with, which is what reassignment is
+  // checked against. Throws if the name is not defined.
+  VariableType declaredType(const std::string& name) const;
 
-  Value* find(const std::string& name);
-  const Value* find(const std::string& name) const;
+private:
+  // A binding remembers its declared type as well as its value, so that
+  // assigning to it can be checked.
+  struct Binding {
+    Value value;
+    VariableType type;
+  };
+
+  std::vector<std::unordered_map<std::string, Binding>> scopes;
+
+  Binding* find(const std::string& name);
+  const Binding* find(const std::string& name) const;
 };

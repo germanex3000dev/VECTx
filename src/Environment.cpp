@@ -14,20 +14,24 @@ void Environment::pushScope() {
 
 void Environment::popScope() {
 
-  if (scopes.size() <= 1) {
-    throw std::runtime_error(
-        "Cannot pop the global scope"
-    );
-  }
+    if (scopes.size() <= 1) {
+        throw std::runtime_error(
+            "Cannot pop the global scope"
+        );
+    }
 
-  scopes.pop_back();
+    scopes.pop_back();
 }
 
-void Environment::define(const std::string& name, const Value& value) {
-  scopes.back()[name] = value;
+void Environment::define(
+    const std::string& name,
+    const Value& value,
+    VariableType type
+) {
+  scopes.back()[name] = Binding{value, type};
 }
 
-Value* Environment::find(const std::string& name) {
+Environment::Binding* Environment::find(const std::string& name) {
 
   for (auto scope = scopes.rbegin(); scope != scopes.rend(); ++scope) {
 
@@ -41,7 +45,9 @@ Value* Environment::find(const std::string& name) {
   return nullptr;
 }
 
-const Value* Environment::find(const std::string& name) const {
+const Environment::Binding* Environment::find(
+    const std::string& name
+) const {
 
   for (auto scope = scopes.rbegin(); scope != scopes.rend(); ++scope) {
 
@@ -57,20 +63,20 @@ const Value* Environment::find(const std::string& name) const {
 
 Value Environment::get(const std::string& name) const {
 
-  const Value* value = find(name);
+  const Binding* binding = find(name);
 
-  if (value == nullptr) {
+  if (binding == nullptr) {
     throw std::runtime_error(
         "Undefined variable: " + name
     );
   }
 
-  return *value;
+  return binding->value;
 }
 
 void Environment::assign(const std::string& name, const Value& value) {
 
-  Value* existing = find(name);
+  Binding* existing = find(name);
 
   if (existing == nullptr) {
     throw std::runtime_error(
@@ -78,5 +84,19 @@ void Environment::assign(const std::string& name, const Value& value) {
     );
   }
 
-  *existing = value;
+  // The declared type does not change on reassignment; only the value does.
+  existing->value = value;
+}
+
+VariableType Environment::declaredType(const std::string& name) const {
+
+  const Binding* binding = find(name);
+
+  if (binding == nullptr) {
+    throw std::runtime_error(
+        "Undefined variable: " + name
+    );
+  }
+
+  return binding->type;
 }

@@ -210,6 +210,25 @@ std::vector<Token> Lexer::tokenize() {
           continue;
         }
 
+        // Logical operators, which are two characters or not a token at all
+        if (c == '&' || c == '|') {
+            char next = (position + 1 < source.length())
+                ? source[position + 1] : '\0';
+
+            if (next == c) {
+                tokens.push_back({
+                    c == '&' ? TokenType::AndAnd : TokenType::OrOr,
+                    std::string(2, c)
+                });
+                advance();
+            } else {
+                tokens.push_back({TokenType::Unknown, std::string(1, c)});
+            }
+
+            advance();
+            continue;
+        }
+
         // Comparison operators (multi-char first)
         if (c == '=' || c == '!' || c == '<' || c == '>') {
             char next = (position + 1 < source.length())

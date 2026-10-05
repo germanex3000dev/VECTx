@@ -51,6 +51,23 @@ int main() {
             var string: verdict = "greater than seven";
             conout(verdict);
         }
+
+        var int: counter = 0;
+        counter = counter + 5;
+        conout(counter);
+
+        if (counter > 0 && counter < 10) {
+            conout("between zero and ten");
+        }
+
+        var any: mixed = 5;
+        mixed = "now a string";
+        conout(mixed is(type: string));
+        conout(mixed is(type: int));
+
+        if (mixed is(type: int) || counter == 5) {
+            conout("int, or counter is five");
+        }
     )";
 
     Lexer lexer(source);

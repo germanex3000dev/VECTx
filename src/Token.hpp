@@ -29,6 +29,9 @@ enum class TokenType {
     Star,
     Slash,
 
+    AndAnd,
+    OrOr,
+
     EqualEqual,
     NotEqual,
     Less,

@@ -4,9 +4,10 @@ A small statically typed scripting language with dynamic support, written in C++
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-VECTx is a work in progress. It has variables, arithmetic, comparison,
-`if` statements and a `conout()` builtin — enough to write small branching
-programs. See [Not implemented yet](#not-implemented-yet) for what is missing.
+VECTx is a work in progress. It has variables, arithmetic, comparison, logical
+operators, reassignment, `if` statements and a `conout()` builtin — enough to
+write small branching programs. See [Not implemented yet](#not-implemented-yet)
+for what is missing.
 
 ## Reason
 Why did I make VECTx? I don't know either. "Why not?", I probably thought, before spending 3 hours 
@@ -58,6 +59,11 @@ true
 7.5
 true
 greater than seven
+5
+between zero and ten
+true
+false
+int, or counter is five
 ```
 
 ## Tests
@@ -74,8 +80,8 @@ Or run the test binary directly for per-check output:
 ./build/vectx_tests
 ```
 
-40 checks covering if statements, type checks, conditions, scoping, syntax
-errors and arithmetic.
+63 checks covering if statements, type checks, logical operators, reassignment,
+conditions, scoping, syntax errors and arithmetic.
 
 ## Language
 
@@ -97,8 +103,8 @@ var string: greeting = "Pineapples";
 var bool: truthy = true;
 ```
 
-The declared type is checked once, at the point of declaration. A mismatch
-raises a `Type mismatch` error.
+The declared type is checked at the point of declaration, and again on every
+later [reassignment](#reassignment). A mismatch raises a `Type mismatch` error.
 
 ### `any`
 
@@ -113,7 +119,8 @@ var any: ratio = computed / 2;   // runtime type: float
 ```
 
 Because the type is not known statically, it can be inspected at runtime with a
-type check.
+type check. An `any` variable is also the only kind that can change what it
+holds after declaration, since it has no declared type to hold it to.
 
 ### Type checks
 
@@ -140,6 +147,66 @@ Because `is` binds tighter than every other operator, be careful mixing it with
 a comparison. `a == b is(type: int)` means `a == (b is(type: int))`, which
 compares a value against a boolean and so is false. Wrap the comparison in
 parentheses, or check the type in a separate statement.
+
+### Reassignment
+
+```
+<name> = <value>;
+```
+
+Assignment writes a new value into an existing variable. It is a statement, not
+an expression, so it cannot be chained like `a = b = 1`. The name must already
+exist; assigning to an undefined one raises `Undefined variable`.
+
+A concretely typed variable keeps its type, so the new value has to match it or
+the assignment raises `Type mismatch`. An `any` variable imposes no such
+constraint, which is how one changes what it holds:
+
+```vectx
+var any: value = 5;
+value = "five";               // allowed: any takes a value of any type
+conout(value is(type: string));   // true
+
+var int: count = 1;
+count = count + 4;            // still an int
+count = "many";               // Type mismatch in assignment to 'count'
+```
+
+`==` remains a comparison, so `count == 1` is a test and not an assignment.
+
+### Logical operators
+
+```
+<expr> && <expr>
+<expr> || <expr>
+```
+
+Both operands **must be a bool**, exactly like an `if` condition. There is no
+truthiness: `1 && true` is an error that reports what it got. `&&` binds tighter
+than `||`, and both bind looser than every comparison, so `a || b && c` means
+`a || (b && c)`. Use parentheses when in doubt.
+
+This is what lets a condition combine a comparison with a type check:
+
+```vectx
+var any: value = 5;
+
+if (value is(type: int) && value > 3) {
+    conout("a big int");
+}
+```
+
+Both short-circuit, so the right operand is not evaluated when the left one
+already decides the result. That is how a check can guard an expression that
+would otherwise fail:
+
+```vectx
+var any: divisor = 0;
+
+if (divisor is(type: int) && divisor != 0) {
+    conout(100 / divisor);    // never runs
+}
+```
 
 ### If statements
 
@@ -175,7 +242,8 @@ if (label is(type: int)) {
 ```
 
 Type checks return a bool, so they drop straight into a condition — this is the
-main way to inspect an `any` value.
+main way to inspect an `any` value. Where a condition needs more than one test,
+combine them with [`&&` and `||`](#logical-operators).
 
 Braces are optional around a single statement, as in C++:
 
@@ -202,9 +270,9 @@ if (true) {
 conout(x);             // 1, the outer x is untouched
 ```
 
-A variable declared outside is visible inside, so blocks can read and shadow
-what came before them. There is no reassignment yet, so a block cannot yet
-write to an enclosing variable from a script.
+A variable declared outside is visible inside, so blocks can read, shadow and
+reassign what came before them — see
+[Reassignment in blocks](#reassignment-in-blocks).
 
 If a statement throws part way through a block, that block's scope is still
 discarded rather than left behind.
@@ -231,12 +299,33 @@ the range of an `int` raise an `Integer overflow` error rather than wrapping.
 
 ### Operators
 
-| Operators | Notes                                        |
-| --------- | -------------------------------------------- |
-| `+ - * /` | arithmetic; numeric operands only            |
-| `== !=`   | equality; differing types are never equal     |
+| Operators   | Notes                                       |
+| ----------- | ------------------------------------------- |
+| `+ - * /`   | arithmetic; numeric operands only           |
+| `== !=`     | equality; differing types are never equal   |
 | `< <= > >=` | comparison; numeric operands only           |
-| `( )`     | grouping                                     |
+| `&& \|\|`   | logical; bool operands only, short-circuits |
+| `is(type:)` | type check; postfix, binds tightest         |
+| `=`         | assignment; a statement, not an expression  |
+| `( )`       | grouping                                    |
+
+Loosest to tightest: `||`, `&&`, `== !=`, `< <= > >=`, `+ -`, `* /`, `is`.
+
+### Reassignment in blocks
+
+Assignment resolves the name the same way a read does, so a block that did not
+shadow the name writes to the variable outside it. That is what makes a variable
+a counter or an accumulator:
+
+```vectx
+var int: total = 0;
+
+if (true) {
+    total = total + 5;
+}
+
+conout(total);   // 5
+```
 
 ### Builtins
 
@@ -256,9 +345,9 @@ Known gaps, so you do not have to go looking for them:
 
 - **No comments.** Neither `//` nor `/* */`.
 - **No unary minus.** Write `0 - 5`; `-5` is a parse error.
-- **No logical operators.** `&&` and `||` do not exist, so a condition cannot
-  combine a comparison with a type check — the most obvious next gap.
-- **No assignment.** Variables cannot be reassigned after declaration.
+- **No logical negation.** `!` and `not` do not exist; write
+  `x == false`.
+- **No compound assignment.** `+=` and friends do not exist; write `x = x + 1`.
 - **No loops.** `while` and `for` do not exist.
 - **No functions.**
 - **No string escapes.** `"\n"` prints a literal backslash-n.
@@ -281,7 +370,7 @@ src/
   Interpreter.{hpp,cpp}  AST -> execution
   main.cpp          entry point and demo program
 tests/
-  test_language.cpp language, scoping and arithmetic tests
+  test_language.cpp language, scoping, logical and assignment tests
 ```
 
 ## License
@@ -290,11 +379,11 @@ MIT — see [LICENSE](LICENSE).
 
 ## Roadmap
 
-- Logical operators, `&&` and `||`, so conditions can combine tests
-- Reassignment, with `any` variables permitted to change type
 - Functions, with `def func name(args) -> ret_glob { return v }` returning through a
   global return variable
 - Loops
 - Comments
 - Unary minus
+- Logical negation, `!`
+- Compound assignment, `+=` and friends
 - File input, so scripts can be run from disk

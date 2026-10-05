@@ -22,6 +22,19 @@ public:
   std::unique_ptr<Expr> expression;
 };
 
+// name = value;
+//
+// Reassigns an existing variable. 'any' variables may take a different type
+// than they had before; a concretely typed variable may not.
+class AssignStmt : public Stmt {
+public:
+  AssignStmt(std::string name, std::unique_ptr<Expr> value)
+    : name(std::move(name)), value(std::move(value)) {}
+
+  std::string name;
+  std::unique_ptr<Expr> value;
+};
+
 class Program {
 public:
   std::vector<std::unique_ptr<Stmt>> statements;
@@ -104,7 +117,12 @@ enum class BinaryOp {
     Less,
     LessEqual,
     Greater,
-    GreaterEqual
+    GreaterEqual,
+
+    // Lowest precedence: && binds tighter than ||, both looser than the
+    // comparisons above.
+    LogicalAnd,
+    LogicalOr
 };
 
 class BinaryExpr : public Expr {

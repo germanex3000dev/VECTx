@@ -179,6 +179,12 @@ void Interpreter::execute(const Stmt* statement) {
         return;
     }
 
+    if (auto assignment = dynamic_cast<const AssignStmt*>(statement)) {
+
+        executeAssignment(assignment);
+        return;
+    }
+
     if (auto block = dynamic_cast<const BlockStmt*>(statement)) {
 
         executeBlock(block);
@@ -251,7 +257,31 @@ void Interpreter::executeVariableDeclaration(
         );
     }
 
-    environment.define(statement->name, value);
+    environment.define(statement->name, value, statement->type);
+}
+
+void Interpreter::executeAssignment(const AssignStmt* statement) {
+
+    // Look the variable up first, so assigning to a name that does not
+    // exist reports that rather than evaluating the value for nothing.
+    VariableType declared = environment.declaredType(statement->name);
+
+    Value value = evaluate(statement->value.get());
+
+    // A concretely typed variable keeps its type, so the new value has to
+    // match. 'any' is dynamic and accepts a value of any type, which is how
+    // an 'any' variable changes what it holds.
+    if (
+        declared != VariableType::Any &&
+        !isOfType(value, declared)
+    ) {
+        throw std::runtime_error(
+            "Type mismatch in assignment to '" +
+            statement->name + "'"
+        );
+    }
+
+    environment.assign(statement->name, value);
 }
 
 Value Interpreter::evaluate(const Expr* expr) {
@@ -350,7 +380,56 @@ Value Interpreter::evaluateCall(const CallExpr* expr) {
     );
 }
 
+// && and || require bool operands, just like an if condition, and
+// short-circuit: the right operand is only evaluated when the left one does
+// not already decide the result.
+Value Interpreter::evaluateLogical(const BinaryExpr* expr) {
+
+    Value left = evaluate(expr->left.get());
+
+    if (left.type() != ValueType::Boolean) {
+        throw std::runtime_error(
+            std::string(
+                expr->op == BinaryOp::LogicalAnd
+                    ? "'&&' requires a bool, got "
+                    : "'||' requires a bool, got "
+            ) + typeName(left.type())
+        );
+    }
+
+    if (expr->op == BinaryOp::LogicalAnd && !left.asBool()) {
+        return Value(false);
+    }
+
+    if (expr->op == BinaryOp::LogicalOr && left.asBool()) {
+        return Value(true);
+    }
+
+    Value right = evaluate(expr->right.get());
+
+    if (right.type() != ValueType::Boolean) {
+        throw std::runtime_error(
+            std::string(
+                expr->op == BinaryOp::LogicalAnd
+                    ? "'&&' requires a bool, got "
+                    : "'||' requires a bool, got "
+            ) + typeName(right.type())
+        );
+    }
+
+    return Value(right.asBool());
+}
+
 Value Interpreter::evaluateBinary(const BinaryExpr* expr) {
+
+    // The logical operators short-circuit, so they are handled before the
+    // operands are evaluated: the right one may never be evaluated at all.
+    if (
+        expr->op == BinaryOp::LogicalAnd ||
+        expr->op == BinaryOp::LogicalOr
+    ) {
+        return evaluateLogical(expr);
+    }
 
     Value left = evaluate(expr->left.get());
     Value right = evaluate(expr->right.get());
