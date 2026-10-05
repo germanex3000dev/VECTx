@@ -22,7 +22,8 @@ it though. So stay tuned.
 
 ## Build
 
-Requires CMake 3.16+ and a C++17 compiler.
+Requires CMake 3.16+ and a C++17 compiler, plus `make` for CMake's default
+generator. On NixOS, use [the flake](#nix) instead of installing these by hand.
 
 ```sh
 cmake -B build -S .
@@ -53,9 +54,43 @@ g++ -std=c++17 -o vectx src/*.cpp
 printf '21\nhello\n' | ./vectx
 ```
 
-**note for NixOS users:**
-If you are using NixOS(like me), it is recommended that you don't use `cmake`. If you insist, use cmake with a temporary 
-install `nix-shell -p cmake` or configure it with flakes.
+### Nix
+
+If you are on NixOS, use the flake. It pins nixpkgs, so nothing outside the
+repository can change the build.
+
+Get a shell with CMake and a compiler already on PATH:
+
+```sh
+nix develop
+```
+
+Then build and test exactly as above — `cmake -B build -S .`, `cmake --build build`,
+`ctest --test-dir build`.
+
+Or skip the shell entirely and build the package. This runs the tests as part of
+the build, so a failure stops it:
+
+```sh
+nix build
+```
+
+The result lands in the store. `nix build` also drops a symlink named `result` in
+this directory pointing at it.
+
+To run the demo straight from the flake, which is the same as building and
+executing the store path:
+
+```sh
+printf '21\nhello\n' | nix run .
+```
+
+The demo reads two lines of input, so something has to be piped in. Without it
+you get `conin() reached the end of input without a line`.
+
+Without Nix, `nix-shell -p cmake gcc` gives you the same tools in a throwaway
+shell. A bare `cmake` outside a Nix shell tends to fail on this project, because
+CMake defaults to the Makefiles generator and expects `make` on PATH.
 
 ## Running
 
@@ -318,7 +353,7 @@ discarded rather than left behind.
 `int op int` stays an `int`, so arithmetic can be used directly in an `int`
 declaration:
 
-```vectx
+```vectxch-to-configuration /nix/store/xwlsicdqf0jq0vjdm53r0i5i146r68cm-nixos-system-nixos-26.05.11045.774debe7a0d1/bin/switch-to-configuration switch
 var int: a = 5 + 3;   // 8, an int
 var int: b = 5 * 3;   // 15, an int
 ```
@@ -585,10 +620,32 @@ Known gaps, so you do not have to go looking for them:
 - **No file input.** Scripts are hardcoded in `src/main.cpp`; `conin()` reads
   standard input only.
 
+## Nix
+
+`flake.nix` exposes three things:
+
+- `nix develop` — a `devShell` with `cmake`, `gcc` and `gnumake`
+- `nix build` — a package that runs the test suite via `doCheck`
+- `nix run .` — an app that runs the built binary
+
+Systems come from `nixpkgs.lib.systems.flakeExposed` rather than a hardcoded
+string, so the flake evaluates on aarch64 and darwin too, and `nix flake check
+--all-systems` passes on all of them. Only x86_64-linux was actually built here.
+
+The nixpkgs revision is pinned in `flake.lock`, so the shell and the package
+agree with each other and neither shifts under you. Commit `flake.lock` — without
+it, a pull gets whatever nixos-unstable is that day.
+
+`gnumake` is listed explicitly even though `gcc`'s stdenv already drags it in.
+That transitive path is not a contract; naming it means a future nixpkgs cannot
+break the build by dropping it.
+
 ## Layout
 
 ```
 CMakeLists.txt
+flake.nix       Nix dev shell and package
+flake.lock      pinned nixpkgs revision
 LICENSE
 src/
   Token.hpp         token types
