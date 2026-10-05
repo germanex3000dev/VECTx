@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(VECTx
-    VERSION 0.4.7
+    VERSION 0.6.2
     DESCRIPTION "A small dynamically typed scripting language"
     LANGUAGES CXX
 )
