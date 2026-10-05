@@ -2,7 +2,7 @@
 
 A small statically typed scripting language with dynamic support, written in C++17.
 
-### Quick notice
+## Quick notice
 VECTx fiunally entered a pre-alpha stage. Yay! You can build tiny and basic scripts in it now.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
