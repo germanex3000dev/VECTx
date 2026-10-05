@@ -53,6 +53,10 @@ g++ -std=c++17 -o vectx src/*.cpp
 printf '21\nhello\n' | ./vectx
 ```
 
+**note for NixOS users:**
+If you are using NixOS(like me), it is recommended that you don't use `cmake`. If you insist, use cmake with a temporary 
+install `nix-shell -p cmake` or configure it with flakes.
+
 ## Running
 
 `main()` currently executes a hardcoded demo program, so there is nothing to pass
