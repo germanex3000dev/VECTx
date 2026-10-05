@@ -13,6 +13,12 @@ enum class TokenType {
     Var,
     If,
     Else,
+
+    Def,
+    Func,
+    Return,
+
+    Arrow,
     IntType,
     FloatType,
     StringType,

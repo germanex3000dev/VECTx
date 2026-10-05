@@ -129,6 +129,27 @@ Token Lexer::identifier() {
         };
     }
 
+    if (value == "def") {
+        return {
+            TokenType::Def,
+            value
+        };
+    }
+
+    if (value == "func") {
+        return {
+            TokenType::Func,
+            value
+        };
+    }
+
+    if (value == "return") {
+        return {
+            TokenType::Return,
+            value
+        };
+    }
+
     if (value == "int") {
         return {
             TokenType::IntType,
@@ -225,6 +246,15 @@ std::vector<Token> Lexer::tokenize() {
                 tokens.push_back({TokenType::Unknown, std::string(1, c)});
             }
 
+            advance();
+            continue;
+        }
+
+        // The '->' arrow of a function signature. No unary minus exists, so a '-'
+        // followed by '>' is never a subtraction.
+        if (c == '-' && position + 1 < source.length() && source[position + 1] == '>') {
+            tokens.push_back({TokenType::Arrow, "->"});
+            advance();
             advance();
             continue;
         }

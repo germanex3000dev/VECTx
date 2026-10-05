@@ -86,6 +86,14 @@ Program Parser::parse() {
   Program program;
 
   while (current().type != TokenType::EndOfFile) {
+
+    // Function declarations are hoisted out of the statement list, so that a
+    // function can call one declared further down.
+    if (current().type == TokenType::Def) {
+      program.functions.push_back(functionDeclaration());
+      continue;
+    }
+
     program.statements.push_back(statement());
   }
 
@@ -100,6 +108,10 @@ std::unique_ptr<Stmt> Parser::statement() {
 
     if (current().type == TokenType::If) {
         return ifStatement();
+    }
+
+    if (current().type == TokenType::Return) {
+        return returnStatement();
     }
 
     // A bare identifier followed by '=' is a reassignment. '==' is a
@@ -182,6 +194,10 @@ std::unique_ptr<Stmt> Parser::body() {
 }
 
 std::unique_ptr<Stmt> Parser::block() {
+    return blockStatement();
+}
+
+std::unique_ptr<BlockStmt> Parser::blockStatement() {
 
     advance(); // Consume '{'
 
@@ -203,6 +219,150 @@ std::unique_ptr<Stmt> Parser::block() {
     return std::make_unique<BlockStmt>(
         std::move(statements)
     );
+}
+
+std::unique_ptr<Stmt> Parser::returnStatement() {
+
+    advance(); // Consume 'return'
+
+    // A bare 'return;' yields the declared return variable, so there may be
+    // no value here at all.
+    std::unique_ptr<Expr> value;
+
+    if (current().type != TokenType::Semicolon) {
+        value = expression();
+    }
+
+    if (current().type != TokenType::Semicolon) {
+        throw std::runtime_error(
+            "Expected ';' after return"
+        );
+    }
+
+    advance();
+
+    return std::make_unique<ReturnStmt>(
+        std::move(value)
+    );
+}
+
+std::unique_ptr<FunctionStmt> Parser::functionDeclaration() {
+
+    advance(); // Consume 'def'
+
+    if (current().type != TokenType::Func) {
+        throw std::runtime_error(
+            "Expected 'func' after 'def'"
+        );
+    }
+
+    advance(); // Consume 'func'
+
+    if (current().type != TokenType::Identifier) {
+        throw std::runtime_error(
+            "Expected function name"
+        );
+    }
+
+    std::string name = advance().value;
+
+    if (current().type != TokenType::LeftParen) {
+        throw std::runtime_error(
+            "Expected '(' after a function name"
+        );
+    }
+
+    advance();
+
+    std::vector<Parameter> parameters;
+
+    if (current().type != TokenType::RightParen) {
+
+        parameters.push_back(parameter());
+
+        while (current().type == TokenType::Comma) {
+            advance();
+            parameters.push_back(parameter());
+        }
+    }
+
+    if (current().type != TokenType::RightParen) {
+        throw std::runtime_error(
+            "Expected ')' to close a parameter list"
+        );
+    }
+
+    advance();
+
+    if (current().type != TokenType::Arrow) {
+        throw std::runtime_error(
+            "Expected '->' and a return variable after the parameters"
+        );
+    }
+
+    advance();
+
+    VariableType returnType = typeName();
+
+    advance(); // Consume the return type
+
+    if (current().type != TokenType::Colon) {
+        throw std::runtime_error(
+            "Expected ':' after the return type"
+        );
+    }
+
+    advance();
+
+    if (current().type != TokenType::Identifier) {
+        throw std::runtime_error(
+            "Expected a return variable name"
+        );
+    }
+
+    std::string returnName = advance().value;
+
+    if (current().type != TokenType::LeftBrace) {
+        throw std::runtime_error(
+            "Expected '{' to open a function body"
+        );
+    }
+
+    auto body = blockStatement();
+
+    return std::make_unique<FunctionStmt>(
+        std::move(name),
+        std::move(parameters),
+        returnType,
+        std::move(returnName),
+        std::move(body)
+    );
+}
+
+// <type>: <name>, as it appears in a parameter list.
+Parameter Parser::parameter() {
+
+    VariableType type = typeName();
+
+    advance(); // Consume the type name
+
+    if (current().type != TokenType::Colon) {
+        throw std::runtime_error(
+            "Expected ':' after a parameter type"
+        );
+    }
+
+    advance();
+
+    if (current().type != TokenType::Identifier) {
+        throw std::runtime_error(
+            "Expected parameter name"
+        );
+    }
+
+    std::string name = advance().value;
+
+    return Parameter{type, std::move(name)};
 }
 
 std::unique_ptr<Stmt> Parser::assignment() {

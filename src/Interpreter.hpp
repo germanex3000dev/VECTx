@@ -4,6 +4,9 @@
 #include "Environment.hpp"
 #include "Value.hpp"
 
+#include <string>
+#include <unordered_map>
+
 class Interpreter {
 public:
     void execute(const Program& program);
@@ -11,8 +14,18 @@ public:
 
     Value evaluate(const Expr* expr);
 
+void executeReturn(const ReturnStmt* statement);
+
+    Value callFunction(
+        const FunctionStmt* function,
+        const CallExpr* call
+    );
+
 private:
     Environment environment;
+
+    // Declared functions, by name. Populated before anything runs.
+    std::unordered_map<std::string, const FunctionStmt*> functions;
 
     void executeExpression(
         const ExpressionStmt* statement

@@ -5,9 +5,9 @@ A small statically typed scripting language with dynamic support, written in C++
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 VECTx is a work in progress. It has variables, arithmetic, comparison, logical
-operators, reassignment, `if` statements and a `conout()` builtin — enough to
-write small branching programs. See [Not implemented yet](#not-implemented-yet)
-for what is missing.
+operators, reassignment, functions, `if` statements and a `conout()` builtin —
+enough to write small branching programs. See
+[Not implemented yet](#not-implemented-yet) for what is missing.
 
 ## Reason
 Why did I make VECTx? I don't know either. "Why not?", I probably thought, before spending 3 hours 
@@ -21,7 +21,11 @@ Requires CMake 3.16+ and a C++17 compiler.
 
 ```sh
 cmake -B build -S .
+```
+```sh
 cmake --build build
+```
+```sh
 ./build/bin/vectx
 ```
 
@@ -29,6 +33,8 @@ Reconfigure to change the build type:
 
 ```sh
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+```
+```sh
 cmake --build build
 ```
 
@@ -36,6 +42,8 @@ Or compile directly, without CMake:
 
 ```sh
 g++ -std=c++17 -o vectx src/*.cpp
+```
+```sh
 ./vectx
 ```
 
@@ -64,13 +72,19 @@ between zero and ten
 true
 false
 int, or counter is five
+5
+big
 ```
 
 ## Tests
 
 ```sh
 cmake -B build -S .
+```
+```sh
 cmake --build build
+```
+```sh
 ctest --test-dir build --output-on-failure
 ```
 
@@ -80,8 +94,9 @@ Or run the test binary directly for per-check output:
 ./build/vectx_tests
 ```
 
-63 checks covering if statements, type checks, logical operators, reassignment,
-conditions, scoping, syntax errors and arithmetic.
+85 checks covering functions and their scoping, if statements, type checks,
+logical operators, reassignment, conditions, scoping, syntax errors and
+arithmetic.
 
 ## Language
 
@@ -306,10 +321,125 @@ the range of an `int` raise an `Integer overflow` error rather than wrapping.
 | `< <= > >=` | comparison; numeric operands only           |
 | `&& \|\|`   | logical; bool operands only, short-circuits |
 | `is(type:)` | type check; postfix, binds tightest         |
+| `name(...)` | call; the argument count must match          |
 | `=`         | assignment; a statement, not an expression  |
 | `( )`       | grouping                                    |
 
 Loosest to tightest: `||`, `&&`, `== !=`, `< <= > >=`, `+ -`, `* /`, `is`.
+
+### Functions
+
+```
+def func <name>( <type>: <arg>, ... ) -> <type>: <ret_glob> { <body> }
+```
+
+The signature's `-> <type>: <ret_glob>` declares the **return variable**. It is a
+real variable in the function's scope, and it is what the call yields — which is
+what makes it worth declaring instead of only a return type:
+
+```vectx
+def func describe(int: n) -> string: verdict {
+    if (n > 7) {
+        verdict = "big";
+    } else {
+        verdict = "small";
+    }
+}
+
+conout(describe(4 + 5));   // big
+```
+
+Note there is no `return` there. Assigning to the declared variable is enough;
+it starts out as its type's zero (`0`, `0.0`, `""`, `false`, or a value with no
+data for `any`), so a function that never assigns still returns something of the
+right type.
+
+`return` is available when an expression should be the result directly:
+
+```vectx
+def func add(int: a, int: b) -> int: result {
+    return a + b;
+}
+```
+
+`return <expr>;` yields `<expr>`, which must match the declared return type.
+A bare `return;` yields the return variable. `return` leaves the whole function
+straight away, skipping whatever is left of the body however deeply it is
+nested, which is what makes early exit work:
+
+```vectx
+def func clamp(int: n, int: limit) -> int: out {
+    if (n > limit) {
+        return limit;
+    }
+
+    out = n;
+}
+
+conout(clamp(99, 10));   // 10
+```
+
+This is also what lets a function compute a value without going through the
+return variable at all:
+
+```vectx
+def func add(int: a, int: b) -> int: result {
+    result = a + b;
+}
+
+def func pick(int: a, int: b) -> int: out {
+    return a * 10 + b;
+}
+```
+
+Both styles may be mixed, so a function can `return` on one path and fall off
+the end on another. Recursion works, since each call pushes a fresh scope:
+
+Arguments are typed and checked at the call. A value of the wrong type raises
+`Type mismatch in argument`, and the wrong number of arguments raises
+`<name>() expects N argument(s), got M`:
+
+```vectx
+def func is_text(any: value) -> bool: out {
+    out = value is(type: string);
+}
+
+conout(is_text("hello"));   // true
+conout(is_text(5));         // false
+```
+
+An `any` parameter takes any value, and the return variable can be `any` too,
+in which case it keeps whatever runtime type the body gave it.
+
+Functions are hoisted: a call may name a function declared further down the
+file, and functions may call each other in either order.
+
+A call gets its own scope, holding the parameters and the return variable. Both
+are gone when it returns, so neither leaks:
+
+```vectx
+def func f(int: a) -> int: out {
+    var int: tmp = a;
+    out = tmp;
+}
+
+conout(out);    // Undefined variable: out
+```
+
+A function still sees the variables it was called from, since its scope is
+nested inside the caller's:
+
+```vectx
+def func fact(int: n) -> int: out {
+    if (n <= 1) {
+        out = 1;
+    } else {
+        out = n * fact(n - 1);
+    }
+}
+
+conout(fact(5));   // 120
+```
 
 ### Reassignment in blocks
 
@@ -334,10 +464,10 @@ the only builtin, and it requires exactly one argument.
 
 ### Reserved words
 
-`var`, `if`, `else`, `int`, `float`, `string`, `bool`, `any`, `is`, `type`,
-`true`, `false`
+`var`, `if`, `else`, `def`, `func`, `return`, `int`, `float`, `string`, `bool`,
+`any`, `is`, `type`, `true`, `false`
 
-These cannot be used as identifiers.
+These cannot be used as identifiers.export PATH=/home/germanex3000/.opencode/bin:$PATH
 
 ## Not implemented yet
 
@@ -348,8 +478,8 @@ Known gaps, so you do not have to go looking for them:
 - **No logical negation.** `!` and `not` do not exist; write
   `x == false`.
 - **No compound assignment.** `+=` and friends do not exist; write `x = x + 1`.
-- **No loops.** `while` and `for` do not exist.
-- **No functions.**
+- **No loops.** `while` and `for` do not exist, so recursion is the only way to
+  repeat.
 - **No string escapes.** `"\n"` prints a literal backslash-n.
 - **No string concatenation.** `+` only works on numbers.
 - **No `null` literal.** `null` parses as an undefined variable name.
@@ -370,7 +500,7 @@ src/
   Interpreter.{hpp,cpp}  AST -> execution
   main.cpp          entry point and demo program
 tests/
-  test_language.cpp language, scoping, logical and assignment tests
+  test_language.cpp function, scoping, logical and assignment tests
 ```
 
 ## License
@@ -379,8 +509,6 @@ MIT — see [LICENSE](LICENSE).
 
 ## Roadmap
 
-- Functions, with `def func name(args) -> ret_glob { return v }` returning through a
-  global return variable
 - Loops
 - Comments
 - Unary minus

@@ -1,5 +1,6 @@
 #include "Interpreter.hpp"
 
+#include <cstddef>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -27,6 +28,27 @@ public:
 private:
     Environment& environment;
 };
+
+// Unwinds a function body back to the call that started it. A distinct
+// exception type, so it cannot be confused with a runtime error, and so that a
+// 'return' inside nested blocks still leaves the whole function.
+struct ReturnSignal {
+    Value value;
+    bool hasValue;
+};
+
+// The zero of each type, used to give the declared return variable a starting
+// value before the body runs.
+Value defaultValue(VariableType type) {
+    switch (type) {
+        case VariableType::Integer: return Value(0);
+        case VariableType::Float: return Value(0.0);
+        case VariableType::Boolean: return Value(false);
+        case VariableType::String: return Value(std::string());
+        case VariableType::Any: return Value();
+    }
+    return Value();
+}
 
 const char* typeName(ValueType type) {
     switch (type) {
@@ -158,9 +180,88 @@ bool evalComparison(BinaryOp op, double lhs, double rhs) {
 
 void Interpreter::execute(const Program& program) {
 
+  // Registered first, so a function may call one declared later in the file.
+  for (const auto& function : program.functions) {
+    if (!functions.emplace(function->name, function.get()).second) {
+      throw std::runtime_error(
+          "Function already declared: " + function->name
+      );
+    }
+  }
+
   for (const auto& stmt : program.statements) {
     execute(stmt.get());
   }
+}
+
+// Binds the arguments in a scope of their own, runs the body, and yields
+// whatever 'return' produced. A call does not push a scope of its own beyond
+// the body's block, which already has one.
+Value Interpreter::callFunction(
+    const FunctionStmt* function,
+    const CallExpr* call
+) {
+
+    if (call->arguments.size() != function->parameters.size()) {
+        throw std::runtime_error(
+            function->name + "() expects " +
+            std::to_string(function->parameters.size()) +
+            " argument(s), got " +
+            std::to_string(call->arguments.size())
+        );
+    }
+
+    ScopeGuard scope(environment);
+
+    for (std::size_t i = 0; i < function->parameters.size(); ++i) {
+
+        const Parameter& parameter = function->parameters[i];
+
+        Value argument = evaluate(call->arguments[i].get());
+
+        if (!isOfType(argument, parameter.type)) {
+            throw std::runtime_error(
+                "Type mismatch in argument '" + parameter.name +
+                "' of " + function->name
+            );
+        }
+
+        environment.define(parameter.name, argument, parameter.type);
+    }
+
+    // The declared return variable starts at its type's zero, so a function
+    // that returns early or never at all still yields something of the right
+    // type.
+    environment.define(
+        function->returnName,
+        defaultValue(function->returnType),
+        function->returnType
+    );
+
+    bool returned = false;
+    Value value;
+
+    try {
+        execute(function->body.get());
+    } catch (const ReturnSignal& signal) {
+        value = signal.value;
+        returned = signal.hasValue;
+    }
+
+    // 'return;' and falling off the end both yield the return variable, so it
+    // is read after the body rather than before the scope is popped.
+    if (returned) {
+
+        if (!isOfType(value, function->returnType)) {
+            throw std::runtime_error(
+                "Return type mismatch in " + function->name
+            );
+        }
+
+        return value;
+    }
+
+    return environment.get(function->returnName);
 }
 
 void Interpreter::execute(const Stmt* statement) {
@@ -197,9 +298,29 @@ void Interpreter::execute(const Stmt* statement) {
         return;
     }
 
+    if (auto returnStatement =
+        dynamic_cast<const ReturnStmt*>(statement)) {
+
+        executeReturn(returnStatement);
+        return;
+    }
+
     throw std::runtime_error(
         "Unknown statement type"
     );
+}
+
+void Interpreter::executeReturn(const ReturnStmt* statement) {
+
+    Value value;
+
+    // A bare 'return;' carries no value of its own, so hasValue is false and
+    // the call falls back to the declared return variable.
+    if (statement->value != nullptr) {
+        value = evaluate(statement->value.get());
+    }
+
+    throw ReturnSignal{value, statement->value != nullptr};
 }
 
 void Interpreter::executeExpression(
@@ -332,6 +453,12 @@ Value Interpreter::evaluateVariable(const VariableExpr* expr) {
 }
 
 Value Interpreter::evaluateCall(const CallExpr* expr) {
+
+    auto function = functions.find(expr->name);
+
+    if (function != functions.end()) {
+        return callFunction(function->second, expr);
+    }
 
     if (expr->name == "conout") {
 

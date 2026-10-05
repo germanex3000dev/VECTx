@@ -22,6 +22,74 @@ public:
   std::unique_ptr<Expr> expression;
 };
 
+enum class VariableType {
+    Integer,
+    Float,
+    Boolean,
+    String,
+
+    // Dynamic type: accepts any initializer and keeps whatever runtime
+    // type the initializer produced.
+    Any
+};
+
+// A braced group of statements. Also the scope of any variable declared
+// inside it, which is discarded when the block ends.
+class BlockStmt : public Stmt {
+public:
+  explicit BlockStmt(
+      std::vector<std::unique_ptr<Stmt>> statements
+  )
+    : statements(std::move(statements)) {}
+
+  std::vector<std::unique_ptr<Stmt>> statements;
+};
+
+struct Parameter {
+    VariableType type;
+    std::string name;
+};
+
+// def func name(<type>: <arg>, ...) -> <type>: <ret_glob> { ... }
+//
+// The signature's `-> <type>: <ret_glob>` declares the return variable. It
+// lives in the function's own scope and is what a bare `return` yields, so
+// `return ret_glob;` is redundant. `return <expr>;` yields <expr> instead, and
+// that value must match the declared return type.
+class FunctionStmt : public Stmt {
+public:
+  FunctionStmt(
+      std::string name,
+      std::vector<Parameter> parameters,
+      VariableType returnType,
+      std::string returnName,
+      std::unique_ptr<BlockStmt> body
+  )
+    : name(std::move(name)),
+      parameters(std::move(parameters)),
+      returnType(returnType),
+      returnName(std::move(returnName)),
+      body(std::move(body)) {}
+
+  std::string name;
+  std::vector<Parameter> parameters;
+  VariableType returnType;
+  std::string returnName;
+  std::unique_ptr<BlockStmt> body;
+};
+
+// return [<expr>];
+//
+// Without a value it yields the declared return variable. A function that
+// falls off its end yields that variable too.
+class ReturnStmt : public Stmt {
+public:
+  explicit ReturnStmt(std::unique_ptr<Expr> value)
+    : value(std::move(value)) {}
+
+  std::unique_ptr<Expr> value;
+};
+
 // name = value;
 //
 // Reassigns an existing variable. 'any' variables may take a different type
@@ -38,18 +106,11 @@ public:
 class Program {
 public:
   std::vector<std::unique_ptr<Stmt>> statements;
-};
 
-// A braced group of statements. Also the scope of any variable declared
-// inside it, which is discarded when the block ends.
-class BlockStmt : public Stmt {
-public:
-  explicit BlockStmt(
-      std::vector<std::unique_ptr<Stmt>> statements
-  )
-    : statements(std::move(statements)) {}
-
-  std::vector<std::unique_ptr<Stmt>> statements;
+  // Collected separately from the statements so they can all be registered
+  // before anything runs, which is what lets a function call another one
+  // declared later.
+  std::vector<std::unique_ptr<FunctionStmt>> functions;
 };
 
 // if (condition) thenBranch [else elseBranch]
@@ -70,17 +131,6 @@ public:
   std::unique_ptr<Expr> condition;
   std::unique_ptr<Stmt> thenBranch;
   std::unique_ptr<Stmt> elseBranch;
-};
-
-enum class VariableType {
-    Integer,
-    Float,
-    Boolean,
-    String,
-
-    // Dynamic type: accepts any initializer and keeps whatever runtime
-    // type the initializer produced.
-    Any
 };
 
 class VariableDeclStmt : public Stmt {

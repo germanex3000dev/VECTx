@@ -68,6 +68,21 @@ int main() {
         if (mixed is(type: int) || counter == 5) {
             conout("int, or counter is five");
         }
+
+        def func add(int: a, int: b) -> int: result {
+            result = a + b;
+        }
+
+        def func describe(int: n) -> string: verdict {
+            if (n > 7) {
+                verdict = "big";
+            } else {
+                verdict = "small";
+            }
+        }
+
+        conout(add(2, 3));
+        conout(describe(add(4, 5)));
     )";
 
     Lexer lexer(source);

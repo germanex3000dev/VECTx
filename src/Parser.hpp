@@ -24,8 +24,12 @@ private:
     std::unique_ptr<Stmt> statement();
     std::unique_ptr<Stmt> variableDeclaration();
     std::unique_ptr<Stmt> assignment();
+    std::unique_ptr<Stmt> returnStatement();
+    std::unique_ptr<FunctionStmt> functionDeclaration();
+    Parameter parameter();
     std::unique_ptr<Stmt> ifStatement();
     std::unique_ptr<Stmt> block();
+    std::unique_ptr<BlockStmt> blockStatement();
     std::unique_ptr<Stmt> body();
 
     std::unique_ptr<Expr> expression();

@@ -395,6 +395,158 @@ void testIntegerArithmetic() {
     );
 }
 
+void testFunctions() {
+    std::cout << "functions\n";
+
+    expectOutput(
+        "a function returns its declared return variable",
+        "def func add(int: a, int: b) -> int: result { result = a + b; }"
+        " conout(add(2, 3));",
+        "5\n"
+    );
+
+    expectOutput(
+        "a function may set the return variable in a branch",
+        "def func describe(int: n) -> string: verdict {"
+        " if (n > 7) { verdict = \"big\"; } else { verdict = \"small\"; } }"
+        " conout(describe(4 + 5));",
+        "big\n"
+    );
+
+    expectOutput(
+        "return with a value yields that value",
+        "def func pick(int: a, int: b) -> int: out { return a * 10 + b; }"
+        " conout(pick(1, 2));",
+        "12\n"
+    );
+
+    expectOutput(
+        "a bare return yields the return variable",
+        "def func bump(int: a) -> int: out { out = a + 1; return; }"
+        " conout(bump(1));",
+        "2\n"
+    );
+
+    expectOutput(
+        "falling off the end yields the return variable",
+        "def func half(int: a) -> any: out { out = a / 2; }"
+        " conout(half(7));",
+        "3.5\n"
+    );
+
+    expectOutput(
+        "an untouched return variable starts at its type's zero",
+        "def func nothing() -> int: out { } conout(nothing());",
+        "0\n"
+    );
+
+    expectOutput(
+        "a function may be declared after its use",
+        "conout(twice(4)); def func twice(int: a) -> int: out { out = a * 2; }",
+        "8\n"
+    );
+
+    expectOutput(
+        "a function may call another function",
+        "def func inner(int: a) -> int: out { out = a + 1; }"
+        " def func outer(int: a) -> int: out { out = inner(a) * 2; }"
+        " conout(outer(3));",
+        "8\n"
+    );
+
+    expectOutput(
+        "a function with no parameters takes none",
+        "def func five() -> int: out { out = 5; } conout(five());",
+        "5\n"
+    );
+
+    expectOutput(
+        "an any argument fits an any parameter",
+        "def func show(any: v) -> bool: out { out = v is(type: string); }"
+        " conout(show(\"text\"));",
+        "true\n"
+    );
+
+    expectError(
+        "a wrongly typed argument is rejected",
+        "def func need_int(int: a) -> int: out { out = a; } conout(need_int(\"no\"));",
+        "Type mismatch in argument 'a' of need_int"
+    );
+
+    expectError(
+        "the wrong argument count is rejected",
+        "def func add(int: a, int: b) -> int: out { out = a + b; } conout(add(1));",
+        "add() expects 2 argument(s), got 1"
+    );
+
+    expectError(
+        "a return value of the wrong type is rejected",
+        "def func bad() -> int: out { return \"no\"; } conout(bad());",
+        "Return type mismatch in bad"
+    );
+
+    expectError(
+        "calling an unknown function is rejected",
+        "conout(nope(1));",
+        "Unknown function: nope"
+    );
+
+    expectError(
+        "a duplicate function name is rejected",
+        "def func f() -> int: out { } def func f() -> int: out { }",
+        "Function already declared: f"
+    );
+
+    expectError(
+        "a missing -> is a syntax error",
+        "def func f(int: a) { }",
+        "Expected '->'"
+    );
+
+    expectError(
+        "a missing parameter type is a syntax error",
+        "def func f(a) -> int: out { }",
+        "Expected a type name"
+    );
+}
+
+void testFunctionScope() {
+    std::cout << "function scope\n";
+
+    expectError(
+        "a parameter does not leak out",
+        "def func f(int: a) -> int: out { out = a; } conout(a);",
+        "Undefined variable: a"
+    );
+
+    expectError(
+        "the return variable does not leak out",
+        "def func f(int: a) -> int: out { out = a; } conout(out);",
+        "Undefined variable: out"
+    );
+
+    expectError(
+        "a local does not leak out",
+        "def func f(int: a) -> int: out { var int: tmp = a; out = tmp; } conout(tmp);",
+        "Undefined variable: tmp"
+    );
+
+    expectOutput(
+        "a function reads a global variable",
+        "var int: g = 7; def func f() -> int: out { out = g; } conout(f());",
+        "7\n"
+    );
+
+    expectOutput(
+        "a call leaves no scope behind",
+        "var int: x = 1;"
+        " def func f(int: a) -> int: out { out = a + 1; }"
+        " f(f(1));"
+        " conout(x);",
+        "1\n"
+    );
+}
+
 void testLogicalOperators() {
     std::cout << "logical operators\n";
 
@@ -556,6 +708,8 @@ void testAnyReassignment() {
 } // namespace
 
 int main() {
+    testFunctions();
+    testFunctionScope();
     testLogicalOperators();
     testReassignment();
     testAnyReassignment();
