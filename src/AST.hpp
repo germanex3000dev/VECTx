@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -201,6 +202,10 @@ public:
 
     std::string name;
     std::vector<std::unique_ptr<Expr>> arguments;
+
+    // Set for conin(type: <type>), which reads a line as that type instead of
+    // as a string. Empty for every other call.
+    std::optional<VariableType> readType;
 };
 
 class VariableExpr : public Expr {

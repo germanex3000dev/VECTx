@@ -83,6 +83,13 @@ int main() {
 
         conout(add(2, 3));
         conout(describe(add(4, 5)));
+
+        conout("Type a number and a word, on two lines:");
+        var int: typed = conin(type: int);
+        var string: text = conin();
+        conout(typed);
+        conout(text);
+        conout(typed * 2);
     )";
 
     Lexer lexer(source);

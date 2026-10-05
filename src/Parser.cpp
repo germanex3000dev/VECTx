@@ -631,6 +631,82 @@ std::unique_ptr<Expr> Parser::isTypeCheck(
     );
 }
 
+// An identifier is either a call or a variable read, decided by whether '('
+// follows it.
+std::unique_ptr<Expr> Parser::callOrVariable(std::string name) {
+
+    if (current().type != TokenType::LeftParen) {
+        return std::make_unique<VariableExpr>(
+            std::move(name)
+        );
+    }
+
+    advance(); // Consume '('
+
+    // A call may carry a type to read instead of a value to pass:
+    // conin(type: int). The type syntax is shared with 'is(type: ...)', so it
+    // is parsed here rather than in expression().
+    std::optional<VariableType> readType;
+    std::vector<std::unique_ptr<Expr>> arguments;
+
+    if (current().type == TokenType::TypeKeyword) {
+        readType = typeArgument();
+
+        // A type cannot be combined with value arguments, but they are parsed
+        // anyway so that the call reports that itself rather than a bare
+        // syntax error.
+        while (current().type == TokenType::Comma) {
+            advance();
+            arguments.push_back(expression());
+        }
+    } else if (current().type != TokenType::RightParen) {
+
+        arguments.push_back(expression());
+
+        while (current().type == TokenType::Comma) {
+            advance();
+            arguments.push_back(expression());
+        }
+    }
+
+    if (current().type != TokenType::RightParen) {
+        throw std::runtime_error(
+            "Expected ')'"
+        );
+    }
+
+    advance();
+
+    auto call = std::make_unique<CallExpr>(
+        std::move(name),
+        std::move(arguments)
+    );
+
+    call->readType = readType;
+
+    return call;
+}
+
+// type: <type>, as it appears in conin(type: int).
+VariableType Parser::typeArgument() {
+
+    advance(); // Consume 'type'
+
+    if (current().type != TokenType::Colon) {
+        throw std::runtime_error(
+            "Expected ':' after 'type'"
+        );
+    }
+
+    advance();
+
+    VariableType type = typeName();
+
+    advance(); // Consume the type name
+
+    return type;
+}
+
 std::unique_ptr<Expr> Parser::number() {
 
     Token token = advance();
@@ -662,42 +738,7 @@ std::unique_ptr<Expr> Parser::primary() {
     }
 
     if (current().type == TokenType::Identifier) {
-
-        std::string name = advance().value;
-
-        if (current().type == TokenType::LeftParen) {
-
-            advance();
-
-            std::vector<std::unique_ptr<Expr>> arguments;
-
-            if (current().type != TokenType::RightParen) {
-
-                arguments.push_back(expression());
-
-                while (current().type == TokenType::Comma) {
-                    advance();
-                    arguments.push_back(expression());
-                }
-            }
-
-            if (current().type != TokenType::RightParen) {
-                throw std::runtime_error(
-                    "Expected ')'"
-                );
-            }
-
-            advance();
-
-            return std::make_unique<CallExpr>(
-                std::move(name),
-                std::move(arguments)
-            );
-        }
-
-        return std::make_unique<VariableExpr>(
-            std::move(name)
-        );
+        return callOrVariable(advance().value);
     }
 
     if (current().type == TokenType::LeftParen) {

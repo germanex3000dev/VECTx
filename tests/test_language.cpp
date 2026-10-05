@@ -42,6 +42,36 @@ std::string run(const std::string& source) {
     return run(interpreter, source);
 }
 
+// Runs a program with `input` standing in for stdin, and returns what it
+// printed. conin() reads a line at a time from it.
+std::string runWithInput(
+    const std::string& source,
+    const std::string& input
+) {
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    Program program = parser.parse();
+
+    std::istringstream inputStream(input);
+    std::streambuf* previousInput = std::cin.rdbuf(inputStream.rdbuf());
+
+    std::ostringstream buffer;
+    std::streambuf* previousOutput = std::cout.rdbuf(buffer.rdbuf());
+
+    try {
+        Interpreter interpreter;
+        interpreter.execute(program);
+    } catch (...) {
+        std::cout.rdbuf(previousOutput);
+        std::cin.rdbuf(previousInput);
+        throw;
+    }
+
+    std::cout.rdbuf(previousOutput);
+    std::cin.rdbuf(previousInput);
+    return buffer.str();
+}
+
 void pass(const std::string& label) {
     ++checks;
     std::cout << "  ok    " << label << "\n";
@@ -395,6 +425,269 @@ void testIntegerArithmetic() {
     );
 }
 
+void expectInputOutput(
+    const std::string& label,
+    const std::string& source,
+    const std::string& input,
+    const std::string& expected
+) {
+    std::string actual;
+
+    try {
+        actual = runWithInput(source, input);
+    } catch (const std::exception& e) {
+        fail(label, std::string("          unexpected error: ") + e.what() + "\n");
+        return;
+    }
+
+    if (actual == expected) {
+        pass(label);
+    } else {
+        fail(label, show(actual));
+    }
+}
+
+void expectInputError(
+    const std::string& label,
+    const std::string& source,
+    const std::string& input,
+    const std::string& fragment
+) {
+    std::string message;
+
+    try {
+        runWithInput(source, input);
+    } catch (const std::exception& e) {
+        message = e.what();
+    }
+
+    if (message.empty()) {
+        fail(label, "          expected an error, none was raised\n");
+    } else if (message.find(fragment) != std::string::npos) {
+        pass(label);
+    } else {
+        fail(
+            label,
+            std::string("          wanted error containing: ") + fragment +
+            "\n" + show(message)
+        );
+    }
+}
+
+void testConin() {
+    std::cout << "conin()\n";
+
+    expectInputOutput(
+        "conin() reads a line as a string",
+        "conout(conin());",
+        "hello\n",
+        "hello\n"
+    );
+
+    expectInputOutput(
+        "a line without a trailing newline is read",
+        "var string: line = conin(); conout(line);",
+        "no newline",
+        "no newline\n"
+    );
+
+    expectInputOutput(
+        "conin() reads one line per call",
+        "conout(conin()); conout(conin());",
+        "first\nsecond\n",
+        "first\nsecond\n"
+    );
+
+    expectInputOutput(
+        "the result is always a string",
+        "var any: v = conin(); conout(v is(type: string)); conout(v is(type: int));",
+        "42\n",
+        "true\nfalse\n"
+    );
+
+    expectInputOutput(
+        "a string result feeds an int declaration after a type check",
+        "var string: text = conin();"
+        " if (text is(type: string) && text != \"\") { conout(\"got something\"); }",
+        "something\n",
+        "got something\n"
+    );
+
+    expectInputOutput(
+        "conin() works as a function argument",
+        "def func echo(string: a) -> string: out { out = a; } conout(echo(conin()));",
+        "through a function\n",
+        "through a function\n"
+    );
+
+    expectInputOutput(
+        "an empty line is an empty string, not a failure",
+        "var string: line = conin(); conout(line); conout(\"|\");",
+        "\n",
+        "\n|\n"
+    );
+
+    expectInputError(
+        "the end of input without a line is an error",
+        "conout(conin());",
+        "",
+        "end of input"
+    );
+
+    expectInputError(
+        "conin() takes no arguments",
+        "conout(conin(1));",
+        "x\n",
+        "conin() expects no arguments"
+    );
+
+    expectInputError(
+        "a wrongly typed conin() result is rejected",
+        "var int: n = conin();",
+        "5\n",
+        "Type mismatch"
+    );
+}
+
+void testConinTyped() {
+    std::cout << "conin(type:)\\n";
+
+    expectInputOutput(
+        "conin(type: int) reads an int",
+        "var int: num = conin(type: int); conout(num); conout(num is(type: int));",
+        "42\n",
+        "42\ntrue\n"
+    );
+
+    expectInputOutput(
+        "a typed int does arithmetic without a check",
+        "var int: a = conin(type: int); var int: b = conin(type: int); conout(a + b);",
+        "20\n22\n",
+        "42\n"
+    );
+
+    expectInputOutput(
+        "conin(type: float) reads a float",
+        "var float: f = conin(type: float); conout(f); conout(f is(type: float));",
+        "3.5\n",
+        "3.5\ntrue\n"
+    );
+
+    expectInputOutput(
+        "a typed float may be a whole number",
+        "var float: f = conin(type: float); conout(f is(type: float));",
+        "4\n",
+        "true\n"
+    );
+
+    expectInputError(
+        "an int input is not widened to float",
+        "var float: f = conin(type: int);",
+        "4\n",
+        "Type mismatch"
+    );
+
+    expectInputOutput(
+        "conin(type: bool) reads true and false",
+        "var bool: a = conin(type: bool); var bool: b = conin(type: bool); conout(a); conout(b);",
+        "true\nfalse\n",
+        "true\nfalse\n"
+    );
+
+    expectInputOutput(
+        "conin(type: string) reads a string",
+        "var string: s = conin(type: string); conout(s);",
+        "text\n",
+        "text\n"
+    );
+
+    expectInputOutput(
+        "conin(type: any) reads a string with no conversion",
+        "var any: v = conin(type: any); conout(v is(type: string));",
+        "5\n",
+        "true\n"
+    );
+
+    expectInputOutput(
+        "surrounding spaces are tolerated by a typed read",
+        "var int: n = conin(type: int); conout(n);",
+        "  7  \n",
+        "7\n"
+    );
+
+    expectInputOutput(
+        "a blank line is skipped by a typed read",
+        "var int: n = conin(type: int); conout(n);",
+        "\n\n9\n",
+        "9\n"
+    );
+
+    expectInputOutput(
+        "a typed read works as a function argument",
+        "def func double_it(int: a) -> int: out { out = a * 2; }"
+        " conout(double_it(conin(type: int)));",
+        "21\n",
+        "42\n"
+    );
+
+    expectInputOutput(
+        "a typed read drives a condition",
+        "var int: age = conin(type: int);"
+        " if (age >= 18) { conout(\"adult\"); } else { conout(\"minor\"); }",
+        "21\n",
+        "adult\n"
+    );
+
+    expectInputError(
+        "text for a typed int is an error",
+        "var int: n = conin(type: int);",
+        "hello\n",
+        "expected a number, got \"hello\""
+    );
+
+    expectInputError(
+        "a partly numeric line is an error",
+        "var int: n = conin(type: int);",
+        "12abc\n",
+        "expected a number, got \"12abc\""
+    );
+
+    expectInputError(
+        "an int too large for int is an error",
+        "var int: n = conin(type: int);",
+        "99999999999\n",
+        "expected a number"
+    );
+
+    expectInputError(
+        "text for a typed float is an error",
+        "var float: f = conin(type: float);",
+        "nope\n",
+        "expected a number, got \"nope\""
+    );
+
+    expectInputError(
+        "anything but true or false is an error",
+        "var bool: b = conin(type: bool);",
+        "yes\n",
+        "expected 'true' or 'false', got \"yes\""
+    );
+
+    expectInputError(
+        "a type cannot be mixed with arguments",
+        "conout(conin(type: int, 1));",
+        "5\n",
+        "conin(type: ...) takes no arguments"
+    );
+
+    expectInputError(
+        "an argument alone is still rejected",
+        "conout(conin(1));",
+        "5\n",
+        "conin() expects no arguments"
+    );
+}
+
 void testFunctions() {
     std::cout << "functions\n";
 
@@ -708,6 +1001,8 @@ void testAnyReassignment() {
 } // namespace
 
 int main() {
+    testConin();
+    testConinTyped();
     testFunctions();
     testFunctionScope();
     testLogicalOperators();

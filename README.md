@@ -5,8 +5,8 @@ A small statically typed scripting language with dynamic support, written in C++
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 VECTx is a work in progress. It has variables, arithmetic, comparison, logical
-operators, reassignment, functions, `if` statements and a `conout()` builtin —
-enough to write small branching programs. See
+operators, reassignment, functions, `if` statements, and `conout()` and
+`conin()` builtins — enough to write small branching programs. See
 [Not implemented yet](#not-implemented-yet) for what is missing.
 
 ## Reason
@@ -26,7 +26,8 @@ cmake -B build -S .
 cmake --build build
 ```
 ```sh
-./build/bin/vectx
+# the demo reads two lines of input, so pipe some in
+printf '21\nhello\n' | ./build/bin/vectx
 ```
 
 Reconfigure to change the build type:
@@ -44,13 +45,20 @@ Or compile directly, without CMake:
 g++ -std=c++17 -o vectx src/*.cpp
 ```
 ```sh
-./vectx
+printf '21\nhello\n' | ./vectx
 ```
 
 ## Running
 
-`main()` currently executes a hardcoded demo program, so there is nothing to
-pass on the command line yet. The output of the demo is:
+`main()` currently executes a hardcoded demo program, so there is nothing to pass
+on the command line yet. The demo finishes by reading two lines from standard
+input, so it needs some piped or typed in:
+
+```sh
+printf '21\nhello\n' | ./build/bin/vectx
+```
+
+With `21` and `hello` as input, the output is:
 
 ```
 5
@@ -74,6 +82,10 @@ false
 int, or counter is five
 5
 big
+Type a number and a word, on two lines:
+21
+hello
+42
 ```
 
 ## Tests
@@ -94,9 +106,9 @@ Or run the test binary directly for per-check output:
 ./build/vectx_tests
 ```
 
-85 checks covering functions and their scoping, if statements, type checks,
-logical operators, reassignment, conditions, scoping, syntax errors and
-arithmetic.
+114 checks covering `conin()` in both its forms, functions and their scoping, if
+statements, type checks, logical operators, reassignment, conditions, scoping,
+syntax errors and arithmetic.
 
 ## Language
 
@@ -322,6 +334,9 @@ the range of an `int` raise an `Integer overflow` error rather than wrapping.
 | `&& \|\|`   | logical; bool operands only, short-circuits |
 | `is(type:)` | type check; postfix, binds tightest         |
 | `name(...)` | call; the argument count must match          |
+
+Builtins are called the same way: `conout(value)` prints one value, `conin()`
+reads one line as a string, and `conin(type: int)` reads one line as an int.
 | `=`         | assignment; a statement, not an expression  |
 | `( )`       | grouping                                    |
 
@@ -459,15 +474,89 @@ conout(total);   // 5
 
 ### Builtins
 
-`conout(value)` prints a single value followed by a newline. It is currently
-the only builtin, and it requires exactly one argument.
+`conout(value)` prints a single value followed by a newline. It requires exactly
+one argument.
+
+`conin()` reads one line from standard input and returns it as a **string**. It
+takes no arguments. The trailing newline is not part of the value, so a line
+typed at a prompt comes back without it:
+
+```vectx
+conout("What is your name?");
+var string: name = conin();
+conout("Hello, " + name);   // an error: + only works on numbers
+```
+
+Since string concatenation does not exist yet, printing the pieces separately
+is the way to do it:
+
+```vectx
+conout("Hello, ");
+conout(name);
+```
+
+Bare `conin()` always yields a `string`, whatever was typed. `5` comes back as
+a string, not an int, so declaring an `int` from it is a `Type mismatch`. Check
+the type first, then decide what to make of it:
+
+```vectx
+var any: answer = conin();
+
+if (answer is(type: string) && answer != "") {
+    conout("you typed something");
+}
+```
+
+To read a number, name the type you want. The `type: <type>` argument reuses
+the same syntax as a type check, and the line is converted as it is read:
+
+```
+conin(type: <type>)
+```
+
+```vectx
+var int: num = conin(type: int);
+conout(num * 2);           // no conversion step, no type check needed
+
+var float: ratio = conin(type: float);
+var bool: agreed = conin(type: bool);
+```
+
+`int`, `float`, `string`, `bool` and `any` are all accepted. `string` and `any`
+behave exactly like bare `conin()`. Conversion is strict:
+
+- The whole line must be the number, so `12abc` is refused rather than read as
+  `12`. Surrounding spaces are trimmed first, so ` 7 ` is fine.
+- An `int` too large to fit is refused. There is no silent widening: reading
+  `4` with `conin(type: int)` and assigning it to a `float` is a `Type
+  mismatch`, and `conin(type: float)` is how you get a `float`.
+- `bool` accepts exactly `true` or `false`.
+- Anything that will not convert raises an error naming what was expected and
+  what arrived, e.g. `conin(type: int) expected a number, got "hello"`.
+
+A blank line is skipped by every type except `string` and `any`, where an empty
+string is a legitimate answer. So a stray newline cannot be read as `0`.
+
+Reaching the end of the input with no line left at all is an error, so a program
+that reads more lines than were supplied stops rather than looping on nothing.
+
+Both builtins are ordinary calls, so they appear anywhere an expression does —
+including inside a condition or as a function argument:
+
+```vectx
+def func double_it(int: a) -> int: out {
+    out = a * 2;
+}
+
+conout(double_it(conin(type: int)));   // type "21" gives 42
+```
 
 ### Reserved words
 
 `var`, `if`, `else`, `def`, `func`, `return`, `int`, `float`, `string`, `bool`,
 `any`, `is`, `type`, `true`, `false`
 
-These cannot be used as identifiers.export PATH=/home/germanex3000/.opencode/bin:$PATH
+These cannot be used as identifiers.
 
 ## Not implemented yet
 
@@ -481,9 +570,11 @@ Known gaps, so you do not have to go looking for them:
 - **No loops.** `while` and `for` do not exist, so recursion is the only way to
   repeat.
 - **No string escapes.** `"\n"` prints a literal backslash-n.
-- **No string concatenation.** `+` only works on numbers.
+- **No string concatenation.** `+` only works on numbers, so a name read with
+  `conin()` cannot be greeted with `conout("Hello, " + name)`.
 - **No `null` literal.** `null` parses as an undefined variable name.
-- **No file input.** The demo program is hardcoded in `src/main.cpp`.
+- **No file input.** Scripts are hardcoded in `src/main.cpp`; `conin()` reads
+  standard input only.
 
 ## Layout
 
@@ -500,7 +591,7 @@ src/
   Interpreter.{hpp,cpp}  AST -> execution
   main.cpp          entry point and demo program
 tests/
-  test_language.cpp function, scoping, logical and assignment tests
+  test_language.cpp builtin, function, scoping, logical and assignment tests
 ```
 
 ## License
@@ -514,4 +605,5 @@ MIT — see [LICENSE](LICENSE).
 - Unary minus
 - Logical negation, `!`
 - Compound assignment, `+=` and friends
+- String concatenation, so `conin()` output can be used with `+`
 - File input, so scripts can be run from disk

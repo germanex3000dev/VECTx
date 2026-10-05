@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <iostream>
+#include <utility>
 
 namespace {
 
@@ -131,6 +132,97 @@ double asNumber(const Value& v) {
         return v.asFloat();
     }
     throw std::runtime_error("Value is not numeric");
+}
+
+// Reads one line and converts it to `type`, or throws.
+Value readTypedLine(VariableType type) {
+
+    std::string line;
+
+    while (true) {
+
+        if (!std::getline(std::cin, line)) {
+            throw std::runtime_error(
+                "conin() reached the end of input without a line"
+            );
+        }
+
+        // An empty line is a real, empty string rather than a failure, so a
+        // program can tell it apart from a missing line. Every other type
+        // skips over blank input instead, since no value of those types can
+        // be spelled with nothing at all.
+        if (
+            type == VariableType::String ||
+            type == VariableType::Any
+        ) {
+            break;
+        }
+
+        if (line.find_first_not_of(" \t\r") != std::string::npos) {
+            break;
+        }
+    }
+
+    if (type == VariableType::String || type == VariableType::Any) {
+        return Value(line);
+    }
+
+    if (type == VariableType::Boolean) {
+        if (line == "true") return Value(true);
+        if (line == "false") return Value(false);
+
+        throw std::runtime_error(
+            "conin(type: bool) expected 'true' or 'false', got \"" +
+            line + "\""
+        );
+    }
+
+    // Surrounding whitespace is trimmed, so " 7 " still reads as 7. The ends
+    // are then checked by hand because std::stoll and std::stod happily read
+    // a prefix and ignore the rest, so "12abc" would pass as 12.
+    std::size_t first = line.find_first_not_of(" \t\r");
+
+    if (first != std::string::npos) {
+        line = line.substr(
+            first, line.find_last_not_of(" \t\r") - first + 1
+        );
+    }
+
+    std::size_t used = 0;
+
+    try {
+        if (type == VariableType::Integer) {
+
+            long long value = std::stoll(line, &used);
+
+            if (used != line.size()) {
+                throw std::invalid_argument("trailing");
+            }
+
+            if (
+                value < std::numeric_limits<int>::min() ||
+                value > std::numeric_limits<int>::max()
+            ) {
+                throw std::out_of_range("out of int range");
+            }
+
+            return Value(static_cast<int>(value));
+        }
+
+        double value = std::stod(line, &used);
+
+        if (used != line.size()) {
+            throw std::invalid_argument("trailing");
+        }
+
+        return Value(value);
+    } catch (const std::exception&) {
+        throw std::runtime_error(
+            std::string("conin(type: ") +
+            (type == VariableType::Integer ? "int" : "float") +
+            ") expected a number, got \"" + line + "\""
+        );
+    }
 }
 
 bool evalEquality(BinaryOp op, const Value& left, const Value& right) {
@@ -458,6 +550,32 @@ Value Interpreter::evaluateCall(const CallExpr* expr) {
 
     if (function != functions.end()) {
         return callFunction(function->second, expr);
+    }
+
+    if (expr->name == "conin") {
+
+        // conin(type: <type>) reads the line as that type. A type may not be
+        // mixed with value arguments.
+        if (
+            expr->readType.has_value() &&
+            !expr->arguments.empty()
+        ) {
+            throw std::runtime_error(
+                "conin(type: ...) takes no arguments"
+            );
+        }
+
+        if (expr->readType.has_value()) {
+            return readTypedLine(*expr->readType);
+        }
+
+        if (!expr->arguments.empty()) {
+            throw std::runtime_error(
+                "conin() expects no arguments"
+            );
+        }
+
+        return readTypedLine(VariableType::String);
     }
 
     if (expr->name == "conout") {

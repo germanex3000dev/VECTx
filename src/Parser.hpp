@@ -43,6 +43,9 @@ private:
 
     std::unique_ptr<Expr> isTypeCheck(std::unique_ptr<Expr> target);
 
+    std::unique_ptr<Expr> callOrVariable(std::string name);
+    VariableType typeArgument();
+
     std::unique_ptr<Expr> number();
     std::unique_ptr<Expr> floatNumber();
     std::unique_ptr<Expr> string();
