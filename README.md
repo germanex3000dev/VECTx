@@ -7,6 +7,8 @@ A small statically typed scripting language with dynamic support, written in C++
 ## Quick notice
 VECTx fiunally entered a pre-alpha stage. Yay! You can build tiny and basic scripts in it now.
 
+---
+
 VECTx is a work in progress. It has variables, arithmetic, comparison, logical
 operators, reassignment, functions, `if` statements, and `conout()` and
 `conin()` builtins — enough to write small branching programs. See
