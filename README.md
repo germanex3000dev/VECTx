@@ -292,7 +292,7 @@ MIT — see [LICENSE](LICENSE).
 
 - Logical operators, `&&` and `||`, so conditions can combine tests
 - Reassignment, with `any` variables permitted to change type
-- Functions, with `def name(args) -> ret_glob { return v }` returning through a
+- Functions, with `def func name(args) -> ret_glob { return v }` returning through a
   global return variable
 - Loops
 - Comments
