@@ -5,7 +5,7 @@ A small statically typed scripting language with dynamic support, written in C++
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Quick notice
-VECTx fiunally entered a pre-alpha stage. Yay! You can build tiny and basic scripts in it now.
+VECTx finally entered a pre-alpha stage. Yay! You can build tiny and basic scripts in it now.
 
 ---
 
