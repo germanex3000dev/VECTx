@@ -14,6 +14,9 @@ operators, reassignment, functions, `if` statements, and `conout()` and
 `conin()` builtins — enough to write small branching programs. See
 [Not implemented yet](#not-implemented-yet) for what is missing.
 
+While development, I also used AI for explaining certain code I didn't understood or explaining 
+why my code didn't work, instead of me trying to understand it and failing. 
+
 ## Reason
 Why did I make VECTx? I don't know either. "Why not?", I probably thought, before spending 3 hours 
 understanding what even the error means. It literally has no point (apart from being faster than python). 
