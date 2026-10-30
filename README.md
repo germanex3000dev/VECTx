@@ -7,6 +7,10 @@ A small statically typed scripting language with dynamic support, written in C++
 ## Quick notice
 VECTx finally entered a pre-alpha stage. Yay! You can build tiny and basic scripts in it now.
 
+> This project was originally to learn interpreted programming languages, but there were times, 
+> where I was just in a really bad state and just vibecoded some parts of VECTx, but I always reviewed
+> the code from the AI and later even read it carefully und tried to understand it.
+
 ---
 
 VECTx is a work in progress. It has variables, arithmetic, comparison, logical
