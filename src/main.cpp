@@ -2,107 +2,60 @@
 #include "Parser.hpp"
 #include "Interpreter.hpp"
 
-int main() {
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
-    const std::string source = R"(
-        var int: number = 5;
-        conout(number);
-        conout(number * 3);
+std::string readFile(const std::string& path) {
+    std::ifstream file(path);
+    if (!file) {
+        throw std::runtime_error("Could not open file: " + path);
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
 
-        var int: doubled = number * 2;
-        conout(doubled);
+void printHelp(const char* programName) {
+    std::cout << "VECTx - A small statically typed scripting language\n\n";
+    std::cout << "Usage: " << programName << " [script.vex]\n\n";
+    std::cout << "If no script file is provided, this help message is shown.\n";
+    std::cout << "Script files are VECTx source code with .vex extension (by convention).\n";
+}
 
-        var float: pi = 3.14;
-        conout(pi);
+int runSource(const std::string& source) {
+    try {
+        Lexer lexer(source);
+        auto tokens = lexer.tokenize();
+        Parser parser(tokens);
+        Program program = parser.parse();
+        Interpreter interpreter;
+        interpreter.execute(program);
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << '\n';
+        return 1;
+    }
+}
 
-        var string: greeting = "Pineapples";
-        conout(greeting);
+int main(int argc, char* argv[]) {
+    if (argc > 2) {
+        std::cerr << "Usage: " << argv[0] << " [script.vex]\n";
+        return 1;
+    }
 
-        var bool: truthy = true;
-        conout(truthy);
-
-        if (number == 5) {
-            conout("five");
-        } else {
-            conout("not five");
+    if (argc == 2) {
+        try {
+            std::string source = readFile(argv[1]);
+            return runSource(source);
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << '\n';
+            return 1;
         }
+    }
 
-        var any: value = 5;
-        conout(value is(type: int));
-        conout(value is(type: string));
-
-        var any: label = greeting;
-        if (label is(type: string)) {
-            conout("greeting is a string");
-        } else if (label is(type: int)) {
-            conout("greeting is an int");
-        } else {
-            conout("greeting is something else");
-        }
-
-        var any: computed = value * 3;
-        conout(computed is(type: int));
-
-        var any: ratio = computed / 2;
-        conout(ratio);
-        conout(ratio is(type: float));
-
-        if (ratio > 7) {
-            var string: verdict = "greater than seven";
-            conout(verdict);
-        }
-
-        var int: counter = 0;
-        counter = counter + 5;
-        conout(counter);
-
-        if (counter > 0 && counter < 10) {
-            conout("between zero and ten");
-        }
-
-        var any: mixed = 5;
-        mixed = "now a string";
-        conout(mixed is(type: string));
-        conout(mixed is(type: int));
-
-        if (mixed is(type: int) || counter == 5) {
-            conout("int, or counter is five");
-        }
-
-        def func add(int: a, int: b) -> int: result {
-            result = a + b;
-        }
-
-        def func describe(int: n) -> string: verdict {
-            if (n > 7) {
-                verdict = "big";
-            } else {
-                verdict = "small";
-            }
-        }
-
-        conout(add(2, 3));
-        conout(describe(add(4, 5)));
-
-        conout("Type a number and a word, on two lines:");
-        var int: typed = conin(type: int);
-        var string: text = conin();
-        conout(typed);
-        conout(text);
-        conout(typed * 2);
-    )";
-
-    Lexer lexer(source);
-
-    auto tokens = lexer.tokenize();
-
-    Parser parser(tokens);
-
-    Program program = parser.parse();
-
-    Interpreter interpreter;
-
-    interpreter.execute(program);
-
+    // No file provided: show help
+    printHelp(argv[0]);
     return 0;
 }
