@@ -4,6 +4,10 @@ A small statically typed scripting language with dynamic support, written in C++
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+## BIG IMPORTANT UPDATE
+
+VECTx has external file support now!!! You can create a `.vex` file and run it!
+
 ## Quick notice
 VECTx finally entered a pre-alpha stage. Yay! You can build tiny and basic scripts in it now.
 
@@ -38,10 +42,6 @@ cmake -B build -S .
 ```sh
 cmake --build build
 ```
-```sh
-# the demo reads two lines of input, so pipe some in
-printf '21\nhello\n' | ./build/bin/vectx
-```
 
 Reconfigure to change the build type:
 
@@ -56,9 +56,6 @@ Or compile directly, without CMake:
 
 ```sh
 g++ -std=c++17 -o vectx src/*.cpp
-```
-```sh
-printf '21\nhello\n' | ./vectx
 ```
 
 ### Nix
@@ -85,15 +82,11 @@ nix build
 The result lands in the store. `nix build` also drops a symlink named `result` in
 this directory pointing at it.
 
-To run the demo straight from the flake, which is the same as building and
-executing the store path:
+To run the binary straight from the flake:
 
 ```sh
-printf '21\nhello\n' | nix run .
+nix run . -- script.vex
 ```
-
-The demo reads two lines of input, so something has to be piped in. Without it
-you get `conin() reached the end of input without a line`.
 
 Without Nix, `nix-shell -p cmake gcc` gives you the same tools in a throwaway
 shell. A bare `cmake` outside a Nix shell tends to fail on this project, because
@@ -101,42 +94,52 @@ CMake defaults to the Makefiles generator and expects `make` on PATH.
 
 ## Running
 
-`main()` currently executes a hardcoded demo program, so there is nothing to pass
-on the command line yet. The demo finishes by reading two lines from standard
-input, so it needs some piped or typed in:
+Run a VECTx script by passing a `.vex` file as an argument:
 
 ```sh
-printf '21\nhello\n' | ./build/bin/vectx
+./build/bin/vectx script.vex
 ```
 
-With `21` and `hello` as input, the output is:
+Or with Nix:
 
+```sh
+nix run . -- script.vex
 ```
-5
-15
-10
-3.14
-Pineapples
-true
-five
-true
-false
-greeting is a string
-true
-7.5
-true
-greater than seven
-5
-between zero and ten
-true
-false
-int, or counter is five
-5
-big
-Type a number and a word, on two lines:
-21
-hello
-42
+
+Running without arguments prints a help message:
+
+```sh
+./build/bin/vectx
+# VECTx - A small statically typed scripting language
+# 
+# Usage: ./build/bin/vectx [script.vex]
+# 
+# If no script file is provided, this help message is shown.
+# Script files are VECTx source code with .vex extension (by convention).
+```
+
+Scripts can read from standard input using `conin()`, so you can pipe data in:
+
+```sh
+printf '21\nhello\n' | ./build/bin/vectx script.vex
+```
+
+Example script (`hello.vex`):
+
+```vectx
+conout("What is your name?");
+var string: name = conin();
+conout("Hello, ");
+conout(name);
+```
+
+Run it:
+
+```sh
+printf 'World\n' | ./build/bin/vectx hello.vex
+# What is your name?
+# Hello, 
+# World
 ```
 
 ## Tests
@@ -624,8 +627,6 @@ Known gaps, so you do not have to go looking for them:
 - **No string concatenation.** `+` only works on numbers, so a name read with
   `conin()` cannot be greeted with `conout("Hello, " + name)`.
 - **No `null` literal.** `null` parses as an undefined variable name.
-- **No file input.** Scripts are hardcoded in `src/main.cpp`; `conin()` reads
-  standard input only.
 
 ## Nix
 
@@ -662,7 +663,7 @@ src/
   Value.{hpp,cpp}   runtime value (a std::variant)
   Environment.{hpp,cpp}  variable storage, as a stack of scopes
   Interpreter.{hpp,cpp}  AST -> execution
-  main.cpp          entry point and demo program
+  main.cpp          entry point (loads and runs script file)
 tests/
   test_language.cpp builtin, function, scoping, logical and assignment tests
 ```
@@ -679,4 +680,3 @@ MIT — see [LICENSE](LICENSE).
 - Logical negation, `!`
 - Compound assignment, `+=` and friends
 - String concatenation, so `conin()` output can be used with `+`
-- File input, so scripts can be run from disk
