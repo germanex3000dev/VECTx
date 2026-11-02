@@ -7,6 +7,7 @@ A small statically typed scripting language with dynamic support, written in C++
 ## BIG IMPORTANT UPDATE
 
 VECTx has external file support now!!! You can create a `.vex` file and run it!
+> This part was heavily vibecoded. I'm kind of completely done with this project, I'm going to take a break from it for a while
 
 ## Quick notice
 VECTx finally entered a pre-alpha stage. Yay! You can build tiny and basic scripts in it now.
